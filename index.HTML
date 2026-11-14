@@ -82,14 +82,14 @@
             border-radius: 12px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.02), 0 1px 3px rgba(0,0,0,0.05);
             transition: transform 0.2s ease;
-            border-left: 6px solid var(--primary-color); /* Default Blu */
+            border-left: 6px solid var(--primary-color);
         }
 
         .turno-card:active {
             transform: scale(0.99);
         }
 
-        /* Regole Colori Bordi / Sfondo richiesti */
+        /* Regole Colori Bordi */
         .turno-blu { border-left-color: #2563eb; }
         .turno-verde { border-left-color: #16a34a; }
         .turno-rosso { border-left-color: #dc2626; }
@@ -140,10 +140,10 @@
         <!-- SCHERMATA TURNI (Nascosta all'avvio) -->
         <div id="risultati-section" style="display: none;">
             
-            <!-- Barra Info Utente -->
+            <!-- Barra Info Utente (ID + Nome) -->
             <div class="user-info-bar d-flex justify-content-between align-items-center mb-4 border">
                 <div>
-                    <span class="text-muted small d-block">ID Operatore</span>
+                    <span class="text-muted small d-block">Operatore</span>
                     <strong id="utente-attivo" class="fs-6 text-dark">--</strong>
                 </div>
                 <button onclick="logout()" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold">Esci</button>
@@ -166,120 +166,4 @@
         // --- CONFIGURAZIONE SUPABASE ---
         const SUPABASE_URL = 'https://uwoniioltnihmqakkzjv.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_Rx8MkwKEJLqZBZtbp-2IYw_rFUvKFin';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        window.onload = () => {
-            const idSalvato = localStorage.getItem('id_archivio');
-            if (idSalvato) {
-                document.getElementById('cf').value = idSalvato;
-                accedi();
-            }
-        };
-
-        function accedi() {
-            const cf = document.getElementById('cf').value.trim();
-            if (!cf) {
-                alert('Inserisci il tuo ID Archivio.');
-                return;
-            }
-            localStorage.setItem('id_archivio', cf);
-            document.getElementById('utente-attivo').innerText = cf;
-            
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('risultati-section').style.display = 'block';
-            document.getElementById('btn-aggiorna').style.display = 'inline-block';
-            
-            caricaTurni();
-        }
-
-        async function caricaTurni() {
-            const idArchivio = localStorage.getItem('id_archivio');
-            const lista = document.getElementById('lista-turni');
-            const loader = document.getElementById('loader');
-
-            lista.innerHTML = '';
-            loader.style.display = 'block';
-
-            const oggi = new Date().toISOString().split('T')[0];
-
-            const { data, error } = await supabaseClient
-                .from('Turnistica')
-                .select('*')
-                .eq('IDArchivio', idArchivio)
-                .gte('Data', oggi) 
-                .order('Data', { ascending: true });
-
-            loader.style.display = 'none';
-
-            if (error) {
-                lista.innerHTML = '<div class="alert alert-danger rounded-3 border-0 shadow-sm p-3">Errore di connessione al database. Riprova più tardi.</div>';
-                console.error(error);
-                return;
-            }
-
-            if (!data || data.length === 0) {
-                lista.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno programmato trovato da oggi in poi per questo ID.</div>';
-                return;
-            }
-
-            data.forEach(t => {
-                const dataObj = new Date(t.Data + 'T00:00:00');
-                
-                const desc = (t.Turno || '').toLowerCase();
-                
-                // Regole colori richieste:
-                // Pomeriggio = Verde
-                // Riposo, Festività, Ferie = Rosso
-                // Tutto il resto = Blu
-                let classeCard = 'turno-blu';
-                let bgBadge = 'bg-primary text-white';
-
-                if (desc.includes('pomeriggio')) {
-                    classeCard = 'turno-verde';
-                    bgBadge = 'bg-success text-white'; // Sfondo verde
-                } else if (desc.includes('riposo') || desc.includes('festivit') || desc.includes('ferie')) {
-                    classeCard = 'turno-rosso';
-                    bgBadge = 'bg-danger text-white'; // Sfondo rosso
-                } else {
-                    classeCard = 'turno-blu';
-                    bgBadge = 'bg-primary text-white'; // Sfondo blu
-                }
-
-                let dettagliExtra = '';
-                if (t.NomeReparto) dettagliExtra += `<div class="text-secondary small fw-medium mt-1">🏥 Reparto: ${t.NomeReparto}</div>`;
-                if (t.NomeSede) dettagliExtra += `<div class="text-secondary small fw-medium">📍 Sede: ${t.NomeSede}</div>`;
-                if (t.Note) dettagliExtra += `<div class="text-muted small mt-2 fst-italic">📝 Note: ${t.Note}</div>`;
-
-                lista.innerHTML += `
-                    <div class="card turno-card p-3 ${classeCard}">
-                        <div class="card-body p-1 d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="text-uppercase text-muted fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">${dataObj.toLocaleDateString('it-IT', { weekday: 'short' })}</div>
-                                <div class="fw-bold fs-5 text-dark">${dataObj.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })} <span class="text-muted fw-normal fs-6">${dataObj.getFullYear()}</span></div>
-                                ${dettagliExtra}
-                            </div>
-                            <div class="text-end">
-                                <span class="badge ${bgBadge} badge-turno shadow-sm">${t.Turno || 'Turno'}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        function logout() {
-            localStorage.removeItem('id_archivio');
-            document.getElementById('cf').value = '';
-            document.getElementById('login-section').style.display = 'block';
-            document.getElementById('risultati-section').style.display = 'none';
-            document.getElementById('btn-aggiorna').style.display = 'none';
-        }
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(() => console.log('PWA pronta!'))
-                .catch(err => console.error('Errore PWA:', err));
-        }
-    </script>
-</body>
-</html>
+        const supabaseClient =
