@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d6efd">
+    <title>Turni Personale</title>
+    
+    <!-- Collegamento al Manifest per rendere l'app installabile -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icona.png">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Libreria ufficiale Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        body { background-color: #f4f6f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .turno-card { border-left: 5px solid #0d6efd; border-radius: 8px; }
+        .turno-notte { border-left-color: #212529; }
+        .turno-riposo { border-left-color: #198754; }
+    </style>
+</head>
+<body>
+
+    <!-- Barra superiore stile App -->
+    <nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">📅 I Miei Turni</span>
+            <button id="btn-aggiorna" onclick="caricaTurni()" class="btn btn-light btn-sm" style="display: none;">🔄 Aggiorna</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- SCHERMATA DI ACCESSO -->
+        <div id="login-section" class="card p-4 shadow-sm border-0">
+            <h5 class="mb-3">Accesso Operatore</h5>
+            <div class="mb-3">
+                <label for="cf" class="form-label text-muted">Codice Fiscale o Matricola</label>
+                <input type="text" id="cf" class="form-control form-control-lg text-uppercase" placeholder="Inserisci codice...">
+            </div>
+            <button onclick="accedi()" class="btn btn-primary btn-lg w-100">Entra</button>
+        </div>
+
+        <!-- SCHERMATA TURNI (Nascosta all'avvio) -->
+        <div id="risultati-section" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-muted small">Utente: <strong id="utente-attivo"></strong></span>
+                <button onclick="logout()" class="btn btn-outline-danger btn-sm">Esci</button>
+            </div>
+
+            <div id="loader" class="text-center my-4" style="display: none;">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2 text-muted">Caricamento turni...</p>
+            </div>
+
+            <div id="lista-turni" class="d-flex flex-column gap-2 pb-5">
+                <!-- Qui verranno inserite le schede dei turni -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURAZIONE SUPABASE ---
+        // Sostituisci questi due valori con quelli del tuo progetto Supabase (Project Settings -> API)
+        const SUPABASE_URL = 'https://uwoniioltnihmqakkzjv.supabase.co/rest/v1/';
+        const SUPABASE_ANON_KEY = 'sb_secret_rPxEiFGfAOxktILZX3z2eg_Bv2fMg61';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Controlla se l'utente aveva già fatto l'accesso in precedenza
+        window.onload = () => {
+            const cfSalvato = localStorage.getItem('cf_operatore');
+            if (cfSalvato) {
+                document.getElementById('cf').value = cfSalvato;
+                accedi();
+            }
+        };
+
+        function accedi() {
+            const cf = document.getElementById('cf').value.trim().toUpperCase();
+            if (!cf) {
+                alert('Inserisci il tuo codice identificativo.');
+                return;
+            }
+            // Salva il codice sul telefono per gli accessi futuri
+            localStorage.setItem('cf_operatore', cf);
+            document.getElementById('utente-attivo').innerText = cf;
+            
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('risultati-section').style.display = 'block';
+            document.getElementById('btn-aggiorna').style.display = 'inline-block';
+            
+            caricaTurni();
+        }
+
+        async function caricaTurni() {
+            const cf = localStorage.getItem('cf_operatore');
+            const lista = document.getElementById('lista-turni');
+            const loader = document.getElementById('loader');
+
+            lista.innerHTML = '';
+            loader.style.display = 'block';
+
+            // Data di oggi in formato YYYY-MM-DD per mostrare da oggi in poi
+            const oggi = new Date().toISOString().split('T')[0];
+
+            // Query a Supabase
+            const { data, error } = await supabaseClient
+                .from('turni_personale')
+                .select('*')
+                .eq('IDArchivio', cf)
+                .gte('data', oggi) // Solo turni da oggi in avanti
+                .order('data', { ascending: true });
+
+            loader.style.display = 'none';
+
+            if (error) {
+                lista.innerHTML = '<div class="alert alert-danger">Errore di connessione. Riprova.</div>';
+                console.error(error);
+                return;
+            }
+
+            if (data.length === 0) {
+                lista.innerHTML = '<div class="alert alert-info">Nessun turno programmato trovato da oggi in poi.</div>';
+                return;
+            }
+
+            // Crea le schede grafiche per ogni turno
+            data.forEach(t => {
+                // Formatta la data in italiano (es. "Lun 16 Nov")
+                const dataObj = new Date(t.data + 'T00:00:00');
+                const dataItaliana = dataObj.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+
+                // Colora diversamente in base al turno
+                let classeExtra = '';
+                let badgeColore = 'bg-primary';
+                const desc = t.Turno.toLowerCase();
+                if (desc.includes('notte')) { classeExtra = 'turno-notte'; badgeColore = 'bg-dark'; }
+                if (desc.includes('riposo') || desc.includes('smonto')) { classeExtra = 'turno-riposo'; badgeColore = 'bg-success'; }
+
+                lista.innerHTML += `
+                    <div class="card shadow-sm border-0 turno-card ${classeExtra}">
+                        <div class="card-body d-flex justify-content-between align-items-center py-3">
+                            <div>
+                                <div class="fw-bold text-capitalize fs-5">${dataItaliana}</div>
+                                <div class="text-muted small">${t.reparto || ''}</div>
+                            </div>
+                            <span class="badge ${badgeColore} fs-6 px-3 py-2">${t.descrizione_turno}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function logout() {
+            localStorage.removeItem('cf_operatore');
+            document.getElementById('cf').value = '';
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('risultati-section').style.display = 'none';
+            document.getElementById('btn-aggiorna').style.display = 'none';
+        }
+
+        // Registrazione del Service Worker per rendere l'app installabile (PWA)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('PWA pronta!'))
+                .catch(err => console.error('Errore PWA:', err));
+        }
+    </script>
+</body>
+</html>
