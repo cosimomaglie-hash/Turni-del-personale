@@ -134,12 +134,12 @@
                 let classeExtra = '';
                 let badgeColore = 'bg-primary';
                 const desc = (t.Turno || '').toLowerCase();
-                if (desc.includes('notte')) { classeExtra = 'turno-notte'; badgeColore = 'bg-dark'; }
-                if (desc.includes('riposo') || desc.includes('smonto')) { classeExtra = 'turno-riposo'; badgeColore = 'bg-success'; }
+                if (desc.includes('Pomeriggio')) { classeExtra = 'turno-notte'; badgeColore = 'bg-dark'; }
+                if (desc.includes('Riposo') || desc.includes('smonto')) { classeExtra = 'turno-riposo'; badgeColore = 'bg-success'; }
 
                 let dettagliExtra = '';
                 if (t.NomeReparto) dettagliExtra += `Reparto: ${t.NomeReparto} `;
-                if (t.NomeSede) dettagliExtra += `| Sede: ${t.NomeSede} `;
+                if (t.NomeSede) dettagliExtra += `<br> Sede: ${t.NomeSede} `;
                 if (t.Note) dettagliExtra += `<br><small class="text-muted">Note: ${t.Note}</small>`;
 
                 lista.innerHTML += `
