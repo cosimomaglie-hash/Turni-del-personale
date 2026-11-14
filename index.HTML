@@ -3,72 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0d6efd">
-    <title>Turni Personale</title>
+    <meta name="theme-color" content="#2563eb">
+    <title>Gestione Turni</title>
     
-    <!-- Collegamento al Manifest per rendere l'app installabile -->
+    <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icona.png">
 
-    <!-- Bootstrap CSS -->
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Libreria ufficiale Supabase -->
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        body { background-color: #f4f6f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        .turno-card { border-left: 5px solid #0d6efd; border-radius: 8px; }
-        .turno-notte { border-left-color: #212529; }
-        .turno-riposo { border-left-color: #198754; }
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Navbar personalizzata */
+        .app-navbar {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Card di login */
+        .login-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-control-lg {
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+            font-weight: 500;
+        }
+
+        .form-control-lg:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        /* Bottoni */
+        .btn-primary {
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            padding: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        /* Schede Turno base */
+        .turno-card {
+            background: var(--card-bg);
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02), 0 1px 3px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease;
+            border-left: 6px solid var(--primary-color); /* Default Blu */
+        }
+
+        .turno-card:active {
+            transform: scale(0.99);
+        }
+
+        /* Regole Colori Bordi / Sfondo richiesti */
+        .turno-blu { border-left-color: #2563eb; }
+        .turno-verde { border-left-color: #16a34a; }
+        .turno-rosso { border-left-color: #dc2626; }
+
+        /* Badge personalizzati */
+        .badge-turno {
+            font-weight: 600;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            letter-spacing: 0.3px;
+        }
+
+        /* Utente attivo box */
+        .user-info-bar {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
     </style>
 </head>
 <body>
 
-    <!-- Barra superiore stile App -->
-    <nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
-        <div class="container">
-            <span class="navbar-brand mb-0 h1">📅 I Miei Turni</span>
-            <button id="btn-aggiorna" onclick="caricaTurni()" class="btn btn-light btn-sm" style="display: none;">🔄 Aggiorna</button>
+    <!-- Barra Superiore -->
+    <nav class="navbar app-navbar py-3 mb-4">
+        <div class="container d-flex justify-content-between align-items-center">
+            <span class="navbar-brand mb-0 h1 fw-bold fs-5 text-white">🗓️ Gestione Turni</span>
+            <button id="btn-aggiorna" onclick="caricaTurni()" class="btn btn-light btn-sm rounded-pill px-3 fw-semibold shadow-sm" style="display: none;">🔄 Aggiorna</button>
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container pb-5" style="max-width: 600px;">
+        
         <!-- SCHERMATA DI ACCESSO -->
-        <div id="login-section" class="card p-4 shadow-sm border-0">
-            <h5 class="mb-3">Accesso Operatore</h5>
-            <div class="mb-3">
-                <label for="cf" class="form-label text-muted">ID Archivio (Matricola)</label>
-                <input type="text" id="cf" class="form-control form-control-lg" placeholder="Inserisci ID...">
+        <div id="login-section" class="card login-card p-4 p-md-5 my-5">
+            <div class="text-center mb-4">
+                <h4 class="fw-bold text-dark">Benvenuto</h4>
+                <p class="text-muted small">Inserisci il tuo ID Archivio per consultare i turni</p>
             </div>
-            <button onclick="accedi()" class="btn btn-primary btn-lg w-100">Entra</button>
+            <div class="mb-3">
+                <label for="cf" class="form-label fw-semibold text-secondary small">ID Archivio (Matricola)</label>
+                <input type="text" id="cf" class="form-control form-control-lg text-center fw-bold text-uppercase" placeholder="ES: 12345">
+            </div>
+            <button onclick="accedi()" class="btn btn-primary btn-lg w-100 shadow-sm mt-2">Visualizza Turni</button>
         </div>
 
         <!-- SCHERMATA TURNI (Nascosta all'avvio) -->
         <div id="risultati-section" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="text-muted small">ID Utente: <strong id="utente-attivo"></strong></span>
-                <button onclick="logout()" class="btn btn-outline-danger btn-sm">Esci</button>
+            
+            <!-- Barra Info Utente -->
+            <div class="user-info-bar d-flex justify-content-between align-items-center mb-4 border">
+                <div>
+                    <span class="text-muted small d-block">ID Operatore</span>
+                    <strong id="utente-attivo" class="fs-6 text-dark">--</strong>
+                </div>
+                <button onclick="logout()" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold">Esci</button>
             </div>
 
-            <div id="loader" class="text-center my-4" style="display: none;">
-                <div class="spinner-border text-primary" role="status"></div>
-                <p class="mt-2 text-muted">Caricamento turni...</p>
+            <!-- Loader -->
+            <div id="loader" class="text-center py-5" style="display: none;">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+                <p class="mt-3 text-muted fw-medium">Caricamento turni in corso...</p>
             </div>
 
-            <div id="lista-turni" class="d-flex flex-column gap-2 pb-5">
-                <!-- Qui verranno inserite le schede dei turni -->
+            <!-- Lista Turni -->
+            <div id="lista-turni" class="d-flex flex-column gap-3">
+                <!-- Le schede dei turni verranno iniettate qui -->
             </div>
         </div>
     </div>
 
     <script>
         // --- CONFIGURAZIONE SUPABASE ---
-        // URL pulito senza /rest/v1/ alla fine
         const SUPABASE_URL = 'https://uwoniioltnihmqakkzjv.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_Rx8MkwKEJLqZBZtbp-2IYw_rFUvKFin';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Controlla se l'utente aveva già fatto l'accesso in precedenza
         window.onload = () => {
             const idSalvato = localStorage.getItem('id_archivio');
             if (idSalvato) {
@@ -83,7 +182,6 @@
                 alert('Inserisci il tuo ID Archivio.');
                 return;
             }
-            // Salva l'ID sul telefono per gli accessi futuri
             localStorage.setItem('id_archivio', cf);
             document.getElementById('utente-attivo').innerText = cf;
             
@@ -102,10 +200,8 @@
             lista.innerHTML = '';
             loader.style.display = 'block';
 
-            // Data di oggi in formato YYYY-MM-DD
             const oggi = new Date().toISOString().split('T')[0];
 
-            // Query corretta che cerca per IDArchivio e ordina per Data (maiuscola)
             const { data, error } = await supabaseClient
                 .from('Turnistica')
                 .select('*')
@@ -116,40 +212,55 @@
             loader.style.display = 'none';
 
             if (error) {
-                lista.innerHTML = '<div class="alert alert-danger">Errore di connessione. Riprova.</div>';
+                lista.innerHTML = '<div class="alert alert-danger rounded-3 border-0 shadow-sm p-3">Errore di connessione al database. Riprova più tardi.</div>';
                 console.error(error);
                 return;
             }
 
             if (!data || data.length === 0) {
-                lista.innerHTML = '<div class="alert alert-info">Nessun turno programmato trovato da oggi in poi per questo ID.</div>';
+                lista.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno programmato trovato da oggi in poi per questo ID.</div>';
                 return;
             }
 
-            // Crea le schede grafiche mappando i campi corretti della tua tabella
             data.forEach(t => {
                 const dataObj = new Date(t.Data + 'T00:00:00');
-                const dataItaliana = dataObj.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
-
-                let classeExtra = '';
-                let badgeColore = 'bg-primary';
+                
                 const desc = (t.Turno || '').toLowerCase();
-                if (desc.includes('Pomeriggio')) { classeExtra = 'turno-notte'; badgeColore = 'bg-dark'; }
-                if (desc.includes('Riposo') || desc.includes('smonto')) { classeExtra = 'turno-riposo'; badgeColore = 'bg-success'; }
+                
+                // Regole colori richieste:
+                // Pomeriggio = Verde
+                // Riposo, Festività, Ferie = Rosso
+                // Tutto il resto = Blu
+                let classeCard = 'turno-blu';
+                let bgBadge = 'bg-primary text-white';
+
+                if (desc.includes('pomeriggio')) {
+                    classeCard = 'turno-verde';
+                    bgBadge = 'bg-success text-white'; // Sfondo verde
+                } else if (desc.includes('riposo') || desc.includes('festivit') || desc.includes('ferie')) {
+                    classeCard = 'turno-rosso';
+                    bgBadge = 'bg-danger text-white'; // Sfondo rosso
+                } else {
+                    classeCard = 'turno-blu';
+                    bgBadge = 'bg-primary text-white'; // Sfondo blu
+                }
 
                 let dettagliExtra = '';
-                if (t.NomeReparto) dettagliExtra += `Reparto: ${t.NomeReparto} `;
-                if (t.NomeSede) dettagliExtra += `<br> Sede: ${t.NomeSede} `;
-                if (t.Note) dettagliExtra += `<br><small class="text-muted">Note: ${t.Note}</small>`;
+                if (t.NomeReparto) dettagliExtra += `<div class="text-secondary small fw-medium mt-1">🏥 Reparto: ${t.NomeReparto}</div>`;
+                if (t.NomeSede) dettagliExtra += `<div class="text-secondary small fw-medium">📍 Sede: ${t.NomeSede}</div>`;
+                if (t.Note) dettagliExtra += `<div class="text-muted small mt-2 fst-italic">📝 Note: ${t.Note}</div>`;
 
                 lista.innerHTML += `
-                    <div class="card shadow-sm border-0 turno-card ${classeExtra}">
-                        <div class="card-body d-flex justify-content-between align-items-center py-3">
+                    <div class="card turno-card p-3 ${classeCard}">
+                        <div class="card-body p-1 d-flex justify-content-between align-items-center">
                             <div>
-                                <div class="fw-bold text-capitalize fs-5">${dataItaliana}</div>
-                                <div class="text-muted small">${dettagliExtra}</div>
+                                <div class="text-uppercase text-muted fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">${dataObj.toLocaleDateString('it-IT', { weekday: 'short' })}</div>
+                                <div class="fw-bold fs-5 text-dark">${dataObj.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })} <span class="text-muted fw-normal fs-6">${dataObj.getFullYear()}</span></div>
+                                ${dettagliExtra}
                             </div>
-                            <span class="badge ${badgeColore} fs-6 px-3 py-2">${t.Turno || 'Turno'}</span>
+                            <div class="text-end">
+                                <span class="badge ${bgBadge} badge-turno shadow-sm">${t.Turno || 'Turno'}</span>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -159,7 +270,6 @@
         function logout() {
             localStorage.removeItem('id_archivio');
             document.getElementById('cf').value = '';
-            document.getElementById('login-state').style.display = 'block'; // Ripristinato ID corretto
             document.getElementById('login-section').style.display = 'block';
             document.getElementById('risultati-section').style.display = 'none';
             document.getElementById('btn-aggiorna').style.display = 'none';
