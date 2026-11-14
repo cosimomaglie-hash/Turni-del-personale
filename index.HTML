@@ -37,8 +37,8 @@
         <div id="login-section" class="card p-4 shadow-sm border-0">
             <h5 class="mb-3">Accesso Operatore</h5>
             <div class="mb-3">
-                <label for="cf" class="form-label text-muted">Codice Fiscale o Matricola</label>
-                <input type="text" id="cf" class="form-control form-control-lg text-uppercase" placeholder="Inserisci codice...">
+                <label for="cf" class="form-label text-muted">ID Archivio (Matricola)</label>
+                <input type="text" id="cf" class="form-control form-control-lg" placeholder="Inserisci ID...">
             </div>
             <button onclick="accedi()" class="btn btn-primary btn-lg w-100">Entra</button>
         </div>
@@ -46,7 +46,7 @@
         <!-- SCHERMATA TURNI (Nascosta all'avvio) -->
         <div id="risultati-section" style="display: none;">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="text-muted small">Utente: <strong id="utente-attivo"></strong></span>
+                <span class="text-muted small">ID Utente: <strong id="utente-attivo"></strong></span>
                 <button onclick="logout()" class="btn btn-outline-danger btn-sm">Esci</button>
             </div>
 
@@ -63,28 +63,28 @@
 
     <script>
         // --- CONFIGURAZIONE SUPABASE ---
-        // Sostituisci questi due valori con quelli del tuo progetto Supabase (Project Settings -> API)
-        const SUPABASE_URL = 'https://uwoniioltnihmqakkzjv.supabase.co/rest/v1/';
-        const SUPABASE_ANON_KEY = 'sb_secret_rPxEiFGfAOxktILZX3z2eg_Bv2fMg61';
+        // URL pulito senza /rest/v1/ alla fine
+        const SUPABASE_URL = 'https://uwoniioltnihmqakkzjv.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_Rx8MkwKEJLqZBZtbp-2IYw_rFUvKFin';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // Controlla se l'utente aveva già fatto l'accesso in precedenza
         window.onload = () => {
-            const cfSalvato = localStorage.getItem('cf_operatore');
-            if (cfSalvato) {
-                document.getElementById('cf').value = cfSalvato;
+            const idSalvato = localStorage.getItem('id_archivio');
+            if (idSalvato) {
+                document.getElementById('cf').value = idSalvato;
                 accedi();
             }
         };
 
         function accedi() {
-            const cf = document.getElementById('cf').value.trim().toUpperCase();
+            const cf = document.getElementById('cf').value.trim();
             if (!cf) {
-                alert('Inserisci il tuo codice identificativo.');
+                alert('Inserisci il tuo ID Archivio.');
                 return;
             }
-            // Salva il codice sul telefono per gli accessi futuri
-            localStorage.setItem('cf_operatore', cf);
+            // Salva l'ID sul telefono per gli accessi futuri
+            localStorage.setItem('id_archivio', cf);
             document.getElementById('utente-attivo').innerText = cf;
             
             document.getElementById('login-section').style.display = 'none';
@@ -95,23 +95,23 @@
         }
 
         async function caricaTurni() {
-            const cf = localStorage.getItem('cf_operatore');
+            const idArchivio = localStorage.getItem('id_archivio');
             const lista = document.getElementById('lista-turni');
             const loader = document.getElementById('loader');
 
             lista.innerHTML = '';
             loader.style.display = 'block';
 
-            // Data di oggi in formato YYYY-MM-DD per mostrare da oggi in poi
+            // Data di oggi in formato YYYY-MM-DD
             const oggi = new Date().toISOString().split('T')[0];
 
-            // Query a Supabase
+            // Query corretta che cerca per IDArchivio e ordina per Data (maiuscola)
             const { data, error } = await supabaseClient
                 .from('Turnistica')
                 .select('*')
-                .eq('IDArchivio', cf)
-                .gte('data', oggi) // Solo turni da oggi in avanti
-                .order('data', { ascending: true });
+                .eq('IDArchivio', idArchivio)
+                .gte('Data', oggi) 
+                .order('Data', { ascending: true });
 
             loader.style.display = 'none';
 
@@ -121,32 +121,35 @@
                 return;
             }
 
-            if (data.length === 0) {
-                lista.innerHTML = '<div class="alert alert-info">Nessun turno programmato trovato da oggi in poi.</div>';
+            if (!data || data.length === 0) {
+                lista.innerHTML = '<div class="alert alert-info">Nessun turno programmato trovato da oggi in poi per questo ID.</div>';
                 return;
             }
 
-            // Crea le schede grafiche per ogni turno
+            // Crea le schede grafiche mappando i campi corretti della tua tabella
             data.forEach(t => {
-                // Formatta la data in italiano (es. "Lun 16 Nov")
-                const dataObj = new Date(t.data + 'T00:00:00');
+                const dataObj = new Date(t.Data + 'T00:00:00');
                 const dataItaliana = dataObj.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
 
-                // Colora diversamente in base al turno
                 let classeExtra = '';
                 let badgeColore = 'bg-primary';
-                const desc = t.Turno.toLowerCase();
+                const desc = (t.Turno || '').toLowerCase();
                 if (desc.includes('notte')) { classeExtra = 'turno-notte'; badgeColore = 'bg-dark'; }
                 if (desc.includes('riposo') || desc.includes('smonto')) { classeExtra = 'turno-riposo'; badgeColore = 'bg-success'; }
+
+                let dettagliExtra = '';
+                if (t.NomeReparto) dettagliExtra += `Reparto: ${t.NomeReparto} `;
+                if (t.NomeSede) dettagliExtra += `| Sede: ${t.NomeSede} `;
+                if (t.Note) dettagliExtra += `<br><small class="text-muted">Note: ${t.Note}</small>`;
 
                 lista.innerHTML += `
                     <div class="card shadow-sm border-0 turno-card ${classeExtra}">
                         <div class="card-body d-flex justify-content-between align-items-center py-3">
                             <div>
                                 <div class="fw-bold text-capitalize fs-5">${dataItaliana}</div>
-                                <div class="text-muted small">${t.reparto || ''}</div>
+                                <div class="text-muted small">${dettagliExtra}</div>
                             </div>
-                            <span class="badge ${badgeColore} fs-6 px-3 py-2">${t.descrizione_turno}</span>
+                            <span class="badge ${badgeColore} fs-6 px-3 py-2">${t.Turno || 'Turno'}</span>
                         </div>
                     </div>
                 `;
@@ -154,14 +157,14 @@
         }
 
         function logout() {
-            localStorage.removeItem('cf_operatore');
+            localStorage.removeItem('id_archivio');
             document.getElementById('cf').value = '';
+            document.getElementById('login-state').style.display = 'block'; // Ripristinato ID corretto
             document.getElementById('login-section').style.display = 'block';
             document.getElementById('risultati-section').style.display = 'none';
             document.getElementById('btn-aggiorna').style.display = 'none';
         }
 
-        // Registrazione del Service Worker per rendere l'app installabile (PWA)
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js')
                 .then(() => console.log('PWA pronta!'))
