@@ -107,7 +107,7 @@
 
             // Query a Supabase
             const { data, error } = await supabaseClient
-                .from('turni_personale')
+                .from('Turnistica')
                 .select('*')
                 .eq('IDArchivio', cf)
                 .gte('data', oggi) // Solo turni da oggi in avanti
