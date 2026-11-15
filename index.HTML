@@ -336,7 +336,7 @@
 
             const nomeDipendente = data[0].Dipendente1 || '';
             const matricola = localStorage.getItem('matricola_utente');
-            document.getElementById('utente-attivo').innerText = `${nomeDipendente}<br>(Matr: ${matricola})`;
+            document.getElementById('utente-attivo').innerText = `${nomeDipendente}\n(Matr: ${matricola})`;
 
             const layoutScelto = getLayoutCorrente();
 
