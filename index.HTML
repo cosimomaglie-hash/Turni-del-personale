@@ -75,40 +75,93 @@
             transform: translateY(-1px);
         }
 
-        /* Schede Turno base */
-        .turno-card {
-            background: var(--card-bg);
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02), 0 1px 3px rgba(0,0,0,0.05);
-            transition: transform 0.2s ease;
-            border-left: 6px solid var(--primary-color);
-        }
-
-        .turno-card:active {
-            transform: scale(0.99);
-        }
-
-        /* Regole Colori Bordi */
-        .turno-blu { border-left-color: #2563eb; }
-        .turno-verde { border-left-color: #16a34a; }
-        .turno-rosso { border-left-color: #dc2626; }
-
-        /* Badge personalizzati */
-        .badge-turno {
-            font-weight: 600;
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            letter-spacing: 0.3px;
-        }
-
         /* Utente attivo box */
         .user-info-bar {
             background: #ffffff;
             border-radius: 12px;
             padding: 12px 16px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        /* Selettore Layout Bar */
+        .layout-selector-bar {
+            background: #e2e8f0;
+            border-radius: 10px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .layout-btn {
+            border: none;
+            background: transparent;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .layout-btn.active {
+            background: white;
+            color: var(--primary-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* --- STILI SPECIFICI PER I 3 MODELLI DI SCHEDA --- */
+
+        /* Modello 1: Data Box (Calendario a sinistra) */
+        .card-mod-1 {
+            background: var(--card-bg);
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: transform 0.2s ease;
+            overflow: hidden;
+        }
+        .date-box {
+            width: 75px;
+            border-radius: 10px;
+            padding: 8px 4px;
+            text-align: center;
+        }
+
+        /* Modello 2: Strutturata (Header + Body sfumato) */
+        .card-mod-2 {
+            background: var(--card-bg);
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            overflow: hidden;
+        }
+        .card-mod-2-header {
+            padding: 10px 16px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Modello 3: Timeline (Compatta con bordo laterale) */
+        .card-mod-3 {
+            background: var(--card-bg);
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            border-left: 6px solid var(--primary-color);
+            transition: transform 0.2s ease;
+        }
+        .turno-blu { border-left-color: #2563eb; }
+        .turno-verde { border-left-color: #16a34a; }
+        .turno-rosso { border-left-color: #dc2626; }
+
+        .badge-turno {
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            letter-spacing: 0.3px;
         }
     </style>
 </head>
@@ -118,7 +171,9 @@
     <nav class="navbar app-navbar py-3 mb-4">
         <div class="container d-flex justify-content-between align-items-center">
             <span class="navbar-brand mb-0 h1 fw-bold fs-5 text-white">🗓️ Gestione Turni</span>
-            <button id="btn-aggiorna" onclick="caricaTurni()" class="btn btn-light btn-sm rounded-pill px-3 fw-semibold shadow-sm" style="display: none;">🔄 Aggiorna</button>
+            <div class="d-flex gap-2">
+                <button id="btn-aggiorna" onclick="caricaTurni()" class="btn btn-light btn-sm rounded-pill px-3 fw-semibold shadow-sm" style="display: none;">🔄 Aggiorna</button>
+            </div>
         </div>
     </nav>
 
@@ -140,13 +195,25 @@
         <!-- SCHERMATA TURNI (Nascosta all'avvio) -->
         <div id="risultati-section" style="display: none;">
             
-            <!-- Barra Info Utente (Matricola + Nome) -->
-            <div class="user-info-bar d-flex justify-content-between align-items-center mb-4 border">
-                <div>
-                    <span class="text-muted small d-block">Operatore</span>
-                    <strong id="utente-attivo" class="fs-6 text-dark">--</strong>
+            <!-- Barra Info Utente + Selettore Layout -->
+            <div class="user-info-bar mb-4 border shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <span class="text-muted small d-block">Operatore</span>
+                        <strong id="utente-attivo" class="fs-6 text-dark">--</strong>
+                    </div>
+                    <button onclick="logout()" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold">Esci</button>
                 </div>
-                <button onclick="logout()" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold">Esci</button>
+                
+                <!-- SELETTORE MODELLO LAYOUT -->
+                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                    <span class="text-muted small fw-semibold">Modello Vista:</span>
+                    <div class="d-flex layout-selector-bar">
+                        <button id="layout-1" onclick="cambiaLayout(1)" class="layout-btn">1. Calendario</button>
+                        <button id="layout-2" onclick="cambiaLayout(2)" class="layout-btn">2. Strutturata</button>
+                        <button id="layout-3" onclick="cambiaLayout(3)" class="layout-btn">3. Timeline</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Loader -->
@@ -157,7 +224,7 @@
 
             <!-- Lista Turni -->
             <div id="lista-turni" class="d-flex flex-column gap-3">
-                <!-- Le schede dei turni verranno iniettate qui -->
+                <!-- Le schede dei turni verranno iniettate qui in base al layout scelto -->
             </div>
         </div>
     </div>
@@ -167,6 +234,8 @@
         const SUPABASE_URL = 'https://uwoniioltnihmqakkzjv.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_Rx8MkwKEJLqZBZtbp-2IYw_rFUvKFin';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let datiCache = []; // Memorizza i dati scaricati per cambiare layout istantaneamente
 
         window.onload = () => {
             const matricolaSalvata = localStorage.getItem('matricola_utente');
@@ -183,7 +252,6 @@
                 return;
             }
 
-            // Converte in numero se la matricola è puramente numerica (evita problemi di tipo con Supabase)
             if (!isNaN(matricola)) {
                 matricola = Number(matricola);
             }
@@ -196,6 +264,29 @@
             document.getElementById('btn-aggiorna').style.display = 'inline-block';
             
             caricaTurni();
+        }
+
+        function getLayoutCorrente() {
+            return Number(localStorage.getItem('layout_scelto')) || 3; // Default modello 3 (Timeline)
+        }
+
+        function cambiaLayout(num) {
+            localStorage.setItem('layout_scelto', num);
+            
+            // Aggiorna lo stato visivo dei bottoni
+            for (let i = 1; i <= 3; i++) {
+                const btn = document.getElementById(`layout-${i}`);
+                if (i === num) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            }
+
+            // Ridisegna la lista se abbiamo già i dati in cache
+            if (datiCache.length > 0) {
+                renderizzaTurni(datiCache);
+            }
         }
 
         async function caricaTurni() {
@@ -229,12 +320,25 @@
 
             if (!data || data.length === 0) {
                 lista.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno programmato trovato da oggi in poi per questa Matricola.</div>';
+                datiCache = [];
                 return;
             }
 
-            // Estrae il nome del dipendente dal primo record disponibile
+            datiCache = data; // Salva in cache
+
+            // Imposta il bottone attivo del layout corrente
+            cambiaLayout(getLayoutCorrente());
+        }
+
+        function renderizzaTurni(data) {
+            const lista = document.getElementById('lista-turni');
+            lista.innerHTML = '';
+
             const nomeDipendente = data[0].Dipendente1 || '';
+            const matricola = localStorage.getItem('matricola_utente');
             document.getElementById('utente-attivo').innerText = `${nomeDipendente} (Matr: ${matricola})`;
+
+            const layoutScelto = getLayoutCorrente();
 
             data.forEach(t => {
                 const dataObj = new Date(t.Data + 'T00:00:00');
@@ -242,16 +346,19 @@
                 
                 let classeCard = 'turno-blu';
                 let bgBadge = 'bg-primary text-white';
+                let bgHeaderMod2 = '#eff6ff'; // Blu chiaro default
+                let colorHeaderMod2 = '#1e40af';
 
                 if (desc.includes('pomeriggio')) {
                     classeCard = 'turno-verde';
-                    bgBadge = 'bg-success text-white'; // Verde
+                    bgBadge = 'bg-success text-white';
+                    bgHeaderMod2 = '#f0fdf4'; // Verde chiaro
+                    colorHeaderMod2 = '#166534';
                 } else if (desc.includes('riposo') || desc.includes('festivit') || desc.includes('ferie')) {
                     classeCard = 'turno-rosso';
-                    bgBadge = 'bg-danger text-white'; // Rosso
-                } else {
-                    classeCard = 'turno-blu';
-                    bgBadge = 'bg-primary text-white'; // Blu
+                    bgBadge = 'bg-danger text-white';
+                    bgHeaderMod2 = '#fef2f2'; // Rosso chiaro
+                    colorHeaderMod2 = '#991b1b';
                 }
 
                 let dettagliExtra = '';
@@ -259,29 +366,70 @@
                 if (t.NomeSede) dettagliExtra += `<div class="text-secondary small fw-medium">📍 Sede: ${t.NomeSede}</div>`;
                 if (t.Note) dettagliExtra += `<div class="text-muted small mt-2 fst-italic">📝 Note: ${t.Note}</div>`;
                 
-                // Campo Orario sotto il turno, senza sfondo e in corsivo
                 const orarioHtml = t.Orario ? `<div class="text-muted small fst-italic mt-1">${t.Orario}</div>` : '';
-
-                // Campi Ruolo e Ruolo1 separati da un trattino sotto l'orario
                 const ruoliTesto = [t.Ruolo, t.Ruolo1].filter(Boolean).join(' - ');
                 const ruoliHtml = ruoliTesto ? `<div class="text-secondary small fw-medium mt-1">${ruoliTesto}</div>` : '';
 
-                lista.innerHTML += `
-                    <div class="card turno-card p-3 ${classeCard}">
-                        <div class="card-body p-1 d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="text-uppercase text-muted fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">${dataObj.toLocaleDateString('it-IT', { weekday: 'short' })}</div>
-                                <div class="fw-bold fs-5 text-dark">${dataObj.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })} <span class="text-muted fw-normal fs-6">${dataObj.getFullYear()}</span></div>
-                                ${dettagliExtra}
-                            </div>
-                            <div class="text-end">
-                                <span class="badge ${bgBadge} badge-turno shadow-sm">${t.Turno || 'Turno'}</span>
-                                ${orarioHtml}
-                                ${ruoliHtml}
+                // --- GENERAZIONE HTML IN BASE AL LAYOUT SCELTO ---
+                if (layoutScelto === 1) {
+                    // MODELLO 1: Data Box (Calendario a sinistra)
+                    lista.innerHTML += `
+                        <div class="card card-mod-1 p-3">
+                            <div class="card-body p-1 d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="date-box ${bgBadge} shadow-sm">
+                                        <div class="text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">${dataObj.toLocaleDateString('it-IT', { weekday: 'short' })}</div>
+                                        <div class="fw-bold fs-4">${dataObj.toLocaleDateString('it-IT', { day: 'numeric' })}</div>
+                                        <div style="font-size: 0.7rem; opacity: 0.9;">${dataObj.toLocaleDateString('it-IT', { month: 'short' })}</div>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold fs-6 text-dark">${t.Turno || 'Turno'}</div>
+                                        ${orarioHtml}
+                                        ${ruoliHtml}
+                                        ${dettagliExtra}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                } else if (layoutScelto === 2) {
+                    // MODELLO 2: Strutturata (Header + Body)
+                    lista.innerHTML += `
+                        <div class="card card-mod-2 border">
+                            <div class="card-mod-2-header" style="background-color: ${bgHeaderMod2}; color: ${colorHeaderMod2};">
+                                <span>📅 ${dataObj.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                                <span class="badge ${bgBadge} badge-turno shadow-sm">${t.Turno || 'Turno'}</span>
+                            </div>
+                            <div class="p-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        ${orarioHtml}
+                                        ${ruoliHtml}
+                                        ${dettagliExtra}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // MODELLO 3: Timeline (Compatta con bordo laterale - Default)
+                    lista.innerHTML += `
+                        <div class="card card-mod-3 p-3 ${classeCard}">
+                            <div class="card-body p-1 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-uppercase text-muted fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">${dataObj.toLocaleDateString('it-IT', { weekday: 'short' })}</div>
+                                    <div class="fw-bold fs-5 text-dark">${dataObj.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })} <span class="text-muted fw-normal fs-6">${dataObj.getFullYear()}</span></div>
+                                    ${dettagliExtra}
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge ${bgBadge} badge-turno shadow-sm">${t.Turno || 'Turno'}</span>
+                                    ${orarioHtml}
+                                    ${ruoliHtml}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
             });
         }
 
