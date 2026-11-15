@@ -83,22 +83,24 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         }
 
-        /* Selettore Layout Bar */
+        /* Selettore Layout Bar (Adattato per 4 modelli) */
         .layout-selector-bar {
             background: #e2e8f0;
             border-radius: 10px;
             padding: 4px;
-            gap: 4px;
+            gap: 2px;
+            overflow-x: auto;
         }
 
         .layout-btn {
             border: none;
             background: transparent;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: 600;
             color: var(--text-muted);
-            padding: 6px 12px;
+            padding: 6px 8px;
             border-radius: 8px;
+            white-space: nowrap;
             transition: all 0.2s ease;
         }
 
@@ -108,7 +110,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
-        /* --- STILI SPECIFICI PER I 3 MODELLI DI SCHEDA --- */
+        /* --- STILI SPECIFICI PER I 4 MODELLI DI SCHEDA --- */
 
         /* Modello 1: Data Box (Calendario a sinistra) */
         .card-mod-1 {
@@ -126,7 +128,7 @@
             text-align: center;
         }
 
-        /* Modello 2: Strutturata (Header + Body sfumato) */
+        /*  2: Strutturata (Header + Body sfumato) */
         .card-mod-2 {
             background: var(--card-bg);
             border: none;
@@ -143,7 +145,7 @@
             align-items: center;
         }
 
-        /* Modello 3: Timeline (Compatta con bordo laterale) */
+        /*  3: Timeline (Compatta con bordo laterale) */
         .card-mod-3 {
             background: var(--card-bg);
             border: none;
@@ -155,6 +157,48 @@
         .turno-blu { border-left-color: #2563eb; }
         .turno-verde { border-left-color: #16a34a; }
         .turno-rosso { border-left-color: #dc2626; }
+
+        /*  4: Griglia Mensile */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+        .calendar-header-day {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            padding-bottom: 4px;
+        }
+        .calendar-cell {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            min-height: 65px;
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .calendar-cell.empty {
+            background: #f8fafc;
+            border-color: transparent;
+        }
+        .calendar-day-num {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            align-self: flex-start;
+        }
+        .calendar-sigla {
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+        }
 
         .badge-turno {
             font-weight: 600;
@@ -205,13 +249,14 @@
                     <button onclick="logout()" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold">Esci</button>
                 </div>
                 
-                <!-- SELETTORE MODELLO LAYOUT -->
+                <!-- SELETTORE  LAYOUT (4 MODELLI) -->
                 <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                    <span class="text-muted small fw-semibold"></span>
+                    <span class="text-muted small fw-semibold">Vista:</span>
                     <div class="d-flex layout-selector-bar">
-                        <button id="layout-1" onclick="cambiaLayout(1)" class="layout-btn">1. Calendario</button>
-                        <button id="layout-2" onclick="cambiaLayout(2)" class="layout-btn">2. Strutturata</button>
-                        <button id="layout-3" onclick="cambiaLayout(3)" class="layout-btn">3. Timeline</button>
+                        <button id="layout-1" onclick="cambiaLayout(1)" class="layout-btn">1. Cal.</button>
+                        <button id="layout-2" onclick="cambiaLayout(2)" class="layout-btn">2. Strutt.</button>
+                        <button id="layout-3" onclick="cambiaLayout(3)" class="layout-btn">3. Time.</button>
+                        <button id="layout-4" onclick="cambiaLayout(4)" class="layout-btn">4. Griglia</button>
                     </div>
                 </div>
             </div>
@@ -273,12 +318,14 @@
         function cambiaLayout(num) {
             localStorage.setItem('layout_scelto', num);
             
-            for (let i = 1; i <= 3; i++) {
+            for (let i = 1; i <= 4; i++) {
                 const btn = document.getElementById(`layout-${i}`);
-                if (i === num) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
+                if (btn) {
+                    if (i === num) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
                 }
             }
 
@@ -336,6 +383,82 @@
 
             const layoutScelto = getLayoutCorrente();
 
+            // --- GESTIONE  4: GRIGLIA MENSILE ---
+            if (layoutScelto === 4) {
+                // Raggruppa i turni per mese (es. "2026-06")
+                const mesiMap = {};
+                data.forEach(t => {
+                    const meseKey = t.Data.substring(0, 7); // YYYY-MM
+                    if (!mesiMap[meseKey]) mesiMap[meseKey] = [];
+                    mesiMap[meseKey].push(t);
+                });
+
+                Object.keys(mesiMap).sort().forEach(meseKey => {
+                    const [anno, mese] = meseKey.split('-');
+                    const dataPrimoMese = new Date(anno, mese - 1, 1);
+                    const nomeMeseAnno = dataPrimoMese.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+
+                    let htmlMese = `
+                        <div class="card p-3 mb-3 border shadow-sm">
+                            <h5 class="fw-bold text-primary text-center text-capitalize mb-3">📅 ${nomeMeseAnno}</h5>
+                            <div class="calendar-grid mb-2">
+                                <div class="calendar-header-day">Lun</div>
+                                <div class="calendar-header-day">Mar</div>
+                                <div class="calendar-header-day">Mer</div>
+                                <div class="calendar-header-day">Gio</div>
+                                <div class="calendar-header-day">Ven</div>
+                                <div class="calendar-header-day">Sab</div>
+                                <div class="calendar-header-day">Dom</div>
+                            </div>
+                            <div class="calendar-grid">
+                    `;
+
+                    // Calcola il primo giorno del mese e quanti giorni ha il mese
+                    const primoGiornoIndex = (dataPrimoMese.getDay() + 6) % 7; // Lunedì = 0
+                    const ultimoGiornoMese = new Date(anno, mese, 0).getDate();
+
+                    // Crea una mappa dei turni del mese per giorno (1-31)
+                    const turniGiornalieri = {};
+                    mesiMap[meseKey].forEach(t => {
+                        const giornoNum = parseInt(t.Data.substring(8, 10), 10);
+                        turniGiornalieri[giornoNum] = t;
+                    });
+
+                    // Celle vuote iniziali
+                    for (let i = 0; i < primoGiornoIndex; i++) {
+                        htmlMese += `<div class="calendar-cell empty"></div>`;
+                    }
+
+                    // Giorni del mese
+                    for (let g = 1; g <= ultimoGiornoMese; g++) {
+                        const turnoGiorno = turniGiornalieri[g];
+                        let siglaHtml = '';
+                        
+                        if (turnoGiorno) {
+                            const desc = (turnoGiorno.Turno || '').toLowerCase();
+                            let bgSigla = 'bg-primary text-white';
+                            if (desc.includes('pomeriggio')) bgSigla = 'bg-success text-white';
+                            else if (desc.includes('riposo') || desc.includes('festivit') || desc.includes('ferie')) bgSigla = 'bg-danger text-white';
+
+                            const sigla = turnoGiorno.SiglaTurno || turnoGiorno.Turno || '-';
+                            siglaHtml = `<span class="calendar-sigla ${bgSigla} shadow-sm">${sigla}</span>`;
+                        }
+
+                        htmlMese += `
+                            <div class="calendar-cell">
+                                <span class="calendar-day-num">${g}</span>
+                                ${siglaHtml}
+                            </div>
+                        `;
+                    }
+
+                    htmlMese += `</div></div>`;
+                    lista.innerHTML += htmlMese;
+                });
+                return;
+            }
+
+            // --- GESTIONE MODELLI 1, 2 e 3 ---
             data.forEach(t => {
                 const dataObj = new Date(t.Data + 'T00:00:00');
                 const desc = (t.Turno || '').toLowerCase();
@@ -362,15 +485,13 @@
                 if (t.NomeSede) dettagliExtra += `<div class="text-secondary small fw-medium">📍 Sede: ${t.NomeSede}</div>`;
                 if (t.Note) dettagliExtra += `<div class="text-muted small mt-2 fst-italic">📝 Note: ${t.Note}</div>`;
                 
-                // SiglaTurno posizionata prima di Orario
                 const siglaTurnoHtml = t.SiglaTurno ? `<div class="text-dark small fw-semibold mt-1">${t.SiglaTurno}</div>` : '';
                 const orarioHtml = t.Orario ? `<div class="text-muted small fst-italic mt-1">${t.Orario}</div>` : '';
                 const ruoliTesto = [t.Ruolo, t.Ruolo1].filter(Boolean).join(' - ');
                 const ruoliHtml = ruoliTesto ? `<div class="text-secondary small fw-medium mt-1">${ruoliTesto}</div>` : '';
 
-                // --- GENERAZIONE HTML IN BASE AL LAYOUT SCELTO ---
                 if (layoutScelto === 1) {
-                    // MODELLO 1: Data Box
+                    //  1: Data Box
                     lista.innerHTML += `
                         <div class="card card-mod-1 p-3">
                             <div class="card-body p-1 d-flex justify-content-between align-items-center">
@@ -392,7 +513,7 @@
                         </div>
                     `;
                 } else if (layoutScelto === 2) {
-                    // MODELLO 2: Strutturata
+                    //  2: Strutturata
                     lista.innerHTML += `
                         <div class="card card-mod-2 border">
                             <div class="card-mod-2-header" style="background-color: ${bgHeaderMod2}; color: ${colorHeaderMod2};">
@@ -412,7 +533,7 @@
                         </div>
                     `;
                 } else {
-                    // MODELLO 3: Timeline
+                    //  3: Timeline
                     lista.innerHTML += `
                         <div class="card card-mod-3 p-3 ${classeCard}">
                             <div class="card-body p-1 d-flex justify-content-between align-items-center">
