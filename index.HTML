@@ -140,7 +140,7 @@
         <!-- SCHERMATA TURNI (Nascosta all'avvio) -->
         <div id="risultati-section" style="display: none;">
             
-            <!-- Barra Info Utente (ID + Nome) -->
+            <!-- Barra Info Utente (Matricola + Nome) -->
             <div class="user-info-bar d-flex justify-content-between align-items-center mb-4 border">
                 <div>
                     <span class="text-muted small d-block">Operatore</span>
@@ -169,27 +169,27 @@
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         window.onload = () => {
-            const idSalvato = localStorage.getItem('id_archivio');
-            if (idSalvato) {
-                document.getElementById('cf').value = idSalvato;
+            const matricolaSalvata = localStorage.getItem('matricola_utente');
+            if (matricolaSalvata) {
+                document.getElementById('cf').value = matricolaSalvata;
                 accedi();
             }
         };
 
         function accedi() {
-            let cf = document.getElementById('cf').value.trim();
-            if (!cf) {
-                alert('Inserisci il tuo ID Archivio.');
+            let matricola = document.getElementById('cf').value.trim();
+            if (!matricola) {
+                alert('Inserisci la tua Matricola.');
                 return;
             }
 
-            // Converte in numero se l'ID è numerico (evita problemi di tipo con Supabase)
-            if (!isNaN(cf)) {
-                cf = Number(cf);
+            // Converte in numero se la matricola è puramente numerica (evita problemi di tipo con Supabase)
+            if (!isNaN(matricola)) {
+                matricola = Number(matricola);
             }
 
-            localStorage.setItem('id_archivio', cf);
-            document.getElementById('utente-attivo').innerText = `ID: ${cf}`;
+            localStorage.setItem('matricola_utente', matricola);
+            document.getElementById('utente-attivo').innerText = `Matr: ${matricola}`;
             
             document.getElementById('login-section').style.display = 'none';
             document.getElementById('risultati-section').style.display = 'block';
@@ -199,7 +199,11 @@
         }
 
         async function caricaTurni() {
-            const idArchivio = localStorage.getItem('id_archivio');
+            let matricola = localStorage.getItem('matricola_utente');
+            if (matricola && !isNaN(matricola)) {
+                matricola = Number(matricola);
+            }
+
             const lista = document.getElementById('lista-turni');
             const loader = document.getElementById('loader');
 
@@ -211,7 +215,7 @@
             const { data, error } = await supabaseClient
                 .from('Turnistica')
                 .select('*')
-                .eq('IDArchivio', idArchivio)
+                .eq('Matricola', matricola)
                 .gte('Data', oggi) 
                 .order('Data', { ascending: true });
 
@@ -224,13 +228,13 @@
             }
 
             if (!data || data.length === 0) {
-                lista.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno programmato trovato da oggi in poi per questo ID.</div>';
+                lista.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno programmato trovato da oggi in poi per questa Matricola.</div>';
                 return;
             }
 
             // Estrae il nome del dipendente dal primo record disponibile
             const nomeDipendente = data[0].Dipendente1 || '';
-            document.getElementById('utente-attivo').innerText = `${nomeDipendente} (ID: ${idArchivio})`;
+            document.getElementById('utente-attivo').innerText = `${nomeDipendente} (Matr: ${matricola})`;
 
             data.forEach(t => {
                 const dataObj = new Date(t.Data + 'T00:00:00');
@@ -282,7 +286,7 @@
         }
 
         function logout() {
-            localStorage.removeItem('id_archivio');
+            localStorage.removeItem('matricola_utente');
             document.getElementById('cf').value = '';
             document.getElementById('login-section').style.display = 'block';
             document.getElementById('risultati-section').style.display = 'none';
