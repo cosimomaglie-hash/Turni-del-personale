@@ -264,7 +264,7 @@
                 
                 <!-- SELETTORE LAYOUT (4 MODELLI) -->
                 <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                    <span class="text-muted small fw-semibold">Vista:</span>
+                    <span class="text-muted small fw-semibold"></span>
                     <div class="d-flex layout-selector-bar">
                         <button id="layout-1" onclick="cambiaLayout(1)" class="layout-btn">1. Cal.</button>
                         <button id="layout-2" onclick="cambiaLayout(2)" class="layout-btn">2. Strutt.</button>
@@ -392,7 +392,7 @@
 
             const nomeDipendente = data[0].Dipendente1 || '';
             const matricola = localStorage.getItem('matricola_utente');
-            document.getElementById('utente-attivo').innerText = `${nomeDipendente} (Matr: ${matricola})`;
+            document.getElementById('utente-attivo').innerText = `${nomeDipendente}\n(Matr: ${matricola})`;
 
             const layoutScelto = getLayoutCorrente();
 
