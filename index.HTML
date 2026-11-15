@@ -207,7 +207,7 @@
                 
                 <!-- SELETTORE MODELLO LAYOUT -->
                 <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                    <span class="text-muted small fw-semibold"></span>
+                    <span class="text-muted small fw-semibold">Modello Vista:</span>
                     <div class="d-flex layout-selector-bar">
                         <button id="layout-1" onclick="cambiaLayout(1)" class="layout-btn">1. Calendario</button>
                         <button id="layout-2" onclick="cambiaLayout(2)" class="layout-btn">2. Strutturata</button>
@@ -235,7 +235,7 @@
         const SUPABASE_ANON_KEY = 'sb_publishable_Rx8MkwKEJLqZBZtbp-2IYw_rFUvKFin';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        let datiCache = []; // Memorizza i dati scaricati per cambiare layout istantaneamente
+        let datiCache = [];
 
         window.onload = () => {
             const matricolaSalvata = localStorage.getItem('matricola_utente');
@@ -267,13 +267,12 @@
         }
 
         function getLayoutCorrente() {
-            return Number(localStorage.getItem('layout_scelto')) || 3; // Default modello 3 (Timeline)
+            return Number(localStorage.getItem('layout_scelto')) || 3;
         }
 
         function cambiaLayout(num) {
             localStorage.setItem('layout_scelto', num);
             
-            // Aggiorna lo stato visivo dei bottoni
             for (let i = 1; i <= 3; i++) {
                 const btn = document.getElementById(`layout-${i}`);
                 if (i === num) {
@@ -283,7 +282,6 @@
                 }
             }
 
-            // Ridisegna la lista se abbiamo già i dati in cache
             if (datiCache.length > 0) {
                 renderizzaTurni(datiCache);
             }
@@ -324,9 +322,7 @@
                 return;
             }
 
-            datiCache = data; // Salva in cache
-
-            // Imposta il bottone attivo del layout corrente
+            datiCache = data;
             cambiaLayout(getLayoutCorrente());
         }
 
@@ -336,7 +332,7 @@
 
             const nomeDipendente = data[0].Dipendente1 || '';
             const matricola = localStorage.getItem('matricola_utente');
-            document.getElementById('utente-attivo').innerText = `${nomeDipendente}\n(Matr: ${matricola})`;
+            document.getElementById('utente-attivo').innerText = `${nomeDipendente} (Matr: ${matricola})`;
 
             const layoutScelto = getLayoutCorrente();
 
@@ -346,18 +342,18 @@
                 
                 let classeCard = 'turno-blu';
                 let bgBadge = 'bg-primary text-white';
-                let bgHeaderMod2 = '#eff6ff'; // Blu chiaro default
+                let bgHeaderMod2 = '#eff6ff';
                 let colorHeaderMod2 = '#1e40af';
 
                 if (desc.includes('pomeriggio')) {
                     classeCard = 'turno-verde';
                     bgBadge = 'bg-success text-white';
-                    bgHeaderMod2 = '#f0fdf4'; // Verde chiaro
+                    bgHeaderMod2 = '#f0fdf4';
                     colorHeaderMod2 = '#166534';
                 } else if (desc.includes('riposo') || desc.includes('festivit') || desc.includes('ferie')) {
                     classeCard = 'turno-rosso';
                     bgBadge = 'bg-danger text-white';
-                    bgHeaderMod2 = '#fef2f2'; // Rosso chiaro
+                    bgHeaderMod2 = '#fef2f2';
                     colorHeaderMod2 = '#991b1b';
                 }
 
@@ -366,13 +362,15 @@
                 if (t.NomeSede) dettagliExtra += `<div class="text-secondary small fw-medium">📍 Sede: ${t.NomeSede}</div>`;
                 if (t.Note) dettagliExtra += `<div class="text-muted small mt-2 fst-italic">📝 Note: ${t.Note}</div>`;
                 
+                // SiglaTurno posizionata prima di Orario
+                const siglaTurnoHtml = t.SiglaTurno ? `<div class="text-dark small fw-semibold mt-1">${t.SiglaTurno}</div>` : '';
                 const orarioHtml = t.Orario ? `<div class="text-muted small fst-italic mt-1">${t.Orario}</div>` : '';
                 const ruoliTesto = [t.Ruolo, t.Ruolo1].filter(Boolean).join(' - ');
                 const ruoliHtml = ruoliTesto ? `<div class="text-secondary small fw-medium mt-1">${ruoliTesto}</div>` : '';
 
                 // --- GENERAZIONE HTML IN BASE AL LAYOUT SCELTO ---
                 if (layoutScelto === 1) {
-                    // MODELLO 1: Data Box (Calendario a sinistra)
+                    // MODELLO 1: Data Box
                     lista.innerHTML += `
                         <div class="card card-mod-1 p-3">
                             <div class="card-body p-1 d-flex justify-content-between align-items-center">
@@ -384,6 +382,7 @@
                                     </div>
                                     <div>
                                         <div class="fw-bold fs-6 text-dark">${t.Turno || 'Turno'}</div>
+                                        ${siglaTurnoHtml}
                                         ${orarioHtml}
                                         ${ruoliHtml}
                                         ${dettagliExtra}
@@ -393,7 +392,7 @@
                         </div>
                     `;
                 } else if (layoutScelto === 2) {
-                    // MODELLO 2: Strutturata (Header + Body)
+                    // MODELLO 2: Strutturata
                     lista.innerHTML += `
                         <div class="card card-mod-2 border">
                             <div class="card-mod-2-header" style="background-color: ${bgHeaderMod2}; color: ${colorHeaderMod2};">
@@ -403,6 +402,7 @@
                             <div class="p-3">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
+                                        ${siglaTurnoHtml}
                                         ${orarioHtml}
                                         ${ruoliHtml}
                                         ${dettagliExtra}
@@ -412,7 +412,7 @@
                         </div>
                     `;
                 } else {
-                    // MODELLO 3: Timeline (Compatta con bordo laterale - Default)
+                    // MODELLO 3: Timeline
                     lista.innerHTML += `
                         <div class="card card-mod-3 p-3 ${classeCard}">
                             <div class="card-body p-1 d-flex justify-content-between align-items-center">
@@ -423,6 +423,7 @@
                                 </div>
                                 <div class="text-end">
                                     <span class="badge ${bgBadge} badge-turno shadow-sm">${t.Turno || 'Turno'}</span>
+                                    ${siglaTurnoHtml}
                                     ${orarioHtml}
                                     ${ruoliHtml}
                                 </div>
