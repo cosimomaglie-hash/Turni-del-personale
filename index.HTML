@@ -254,7 +254,7 @@
                 if (t.NomeReparto) dettagliExtra += `<div class="text-secondary small fw-medium mt-1">🏥 Reparto: ${t.NomeReparto}</div>`;
                 if (t.NomeSede) dettagliExtra += `<div class="text-secondary small fw-medium">📍 Sede: ${t.NomeSede}</div>`;
                 if (t.Note) dettagliExtra += `<div class="text-muted small mt-2 fst-italic">📝 Note: ${t.Note}</div>`;
-                const orarioHtml = t.Orario ? `<div class="text-muted small fst-italic mt-1">${t.Orario}</div>` : '';
+                if (t.Orario) dettagliExtra += `<div class="text-muted small fst-italic mt-1">${t.Orario}</div>` : '';
                 lista.innerHTML += `
                     <div class="card turno-card p-3 ${classeCard}">
                         <div class="card-body p-1 d-flex justify-content-between align-items-center">
