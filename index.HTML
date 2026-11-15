@@ -128,7 +128,7 @@
             text-align: center;
         }
 
-        /*  2: Strutturata (Header + Body sfumato) */
+        /* Modello 2: Strutturata (Header + Body sfumato) */
         .card-mod-2 {
             background: var(--card-bg);
             border: none;
@@ -145,7 +145,7 @@
             align-items: center;
         }
 
-        /*  3: Timeline (Compatta con bordo laterale) */
+        /* Modello 3: Timeline (Compatta con bordo laterale) */
         .card-mod-3 {
             background: var(--card-bg);
             border: none;
@@ -158,11 +158,17 @@
         .turno-verde { border-left-color: #16a34a; }
         .turno-rosso { border-left-color: #dc2626; }
 
-        /*  4: Griglia Mensile */
+        /* Modello 4: Griglia Mensile (Dimensioni fisse e colonne bloccate) */
+        .calendar-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         .calendar-grid {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 6px;
+            grid-template-columns: repeat(7, minmax(45px, 1fr));
+            gap: 4px;
+            min-width: 330px;
         }
         .calendar-header-day {
             text-align: center;
@@ -174,30 +180,37 @@
         .calendar-cell {
             background: #ffffff;
             border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            min-height: 65px;
-            padding: 4px;
+            border-radius: 6px;
+            height: 60px;
+            padding: 3px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             align-items: center;
+            overflow: hidden;
         }
         .calendar-cell.empty {
             background: #f8fafc;
             border-color: transparent;
         }
         .calendar-day-num {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 600;
             color: var(--text-muted);
             align-self: flex-start;
+            line-height: 1;
         }
         .calendar-sigla {
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 6px;
-            margin-bottom: 4px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            margin-bottom: 2px;
+            width: 100%;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .badge-turno {
@@ -249,9 +262,9 @@
                     <button onclick="logout()" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold">Esci</button>
                 </div>
                 
-                <!-- SELETTORE  LAYOUT (4 MODELLI) -->
+                <!-- SELETTORE LAYOUT (4 MODELLI) -->
                 <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                    <span class="text-muted small fw-semibold"></span>
+                    <span class="text-muted small fw-semibold">Vista:</span>
                     <div class="d-flex layout-selector-bar">
                         <button id="layout-1" onclick="cambiaLayout(1)" class="layout-btn">1. Cal.</button>
                         <button id="layout-2" onclick="cambiaLayout(2)" class="layout-btn">2. Strutt.</button>
@@ -379,13 +392,12 @@
 
             const nomeDipendente = data[0].Dipendente1 || '';
             const matricola = localStorage.getItem('matricola_utente');
-            document.getElementById('utente-attivo').innerText = `${nomeDipendente}\n(Matr: ${matricola})`;
+            document.getElementById('utente-attivo').innerText = `${nomeDipendente} (Matr: ${matricola})`;
 
             const layoutScelto = getLayoutCorrente();
 
-            // --- GESTIONE  4: GRIGLIA MENSILE ---
+            // --- GESTIONE MODELLO 4: GRIGLIA MENSILE ---
             if (layoutScelto === 4) {
-                // Raggruppa i turni per mese (es. "2026-06")
                 const mesiMap = {};
                 data.forEach(t => {
                     const meseKey = t.Data.substring(0, 7); // YYYY-MM
@@ -401,35 +413,32 @@
                     let htmlMese = `
                         <div class="card p-3 mb-3 border shadow-sm">
                             <h5 class="fw-bold text-primary text-center text-capitalize mb-3">📅 ${nomeMeseAnno}</h5>
-                            <div class="calendar-grid mb-2">
-                                <div class="calendar-header-day">Lun</div>
-                                <div class="calendar-header-day">Mar</div>
-                                <div class="calendar-header-day">Mer</div>
-                                <div class="calendar-header-day">Gio</div>
-                                <div class="calendar-header-day">Ven</div>
-                                <div class="calendar-header-day">Sab</div>
-                                <div class="calendar-header-day">Dom</div>
-                            </div>
-                            <div class="calendar-grid">
+                            <div class="calendar-wrapper">
+                                <div class="calendar-grid mb-2">
+                                    <div class="calendar-header-day">Lun</div>
+                                    <div class="calendar-header-day">Mar</div>
+                                    <div class="calendar-header-day">Mer</div>
+                                    <div class="calendar-header-day">Gio</div>
+                                    <div class="calendar-header-day">Ven</div>
+                                    <div class="calendar-header-day">Sab</div>
+                                    <div class="calendar-header-day">Dom</div>
+                                </div>
+                                <div class="calendar-grid">
                     `;
 
-                    // Calcola il primo giorno del mese e quanti giorni ha il mese
                     const primoGiornoIndex = (dataPrimoMese.getDay() + 6) % 7; // Lunedì = 0
                     const ultimoGiornoMese = new Date(anno, mese, 0).getDate();
 
-                    // Crea una mappa dei turni del mese per giorno (1-31)
                     const turniGiornalieri = {};
                     mesiMap[meseKey].forEach(t => {
                         const giornoNum = parseInt(t.Data.substring(8, 10), 10);
                         turniGiornalieri[giornoNum] = t;
                     });
 
-                    // Celle vuote iniziali
                     for (let i = 0; i < primoGiornoIndex; i++) {
                         htmlMese += `<div class="calendar-cell empty"></div>`;
                     }
 
-                    // Giorni del mese
                     for (let g = 1; g <= ultimoGiornoMese; g++) {
                         const turnoGiorno = turniGiornalieri[g];
                         let siglaHtml = '';
@@ -441,7 +450,7 @@
                             else if (desc.includes('riposo') || desc.includes('festivit') || desc.includes('ferie')) bgSigla = 'bg-danger text-white';
 
                             const sigla = turnoGiorno.SiglaTurno || turnoGiorno.Turno || '-';
-                            siglaHtml = `<span class="calendar-sigla ${bgSigla} shadow-sm">${sigla}</span>`;
+                            siglaHtml = `<span class="calendar-sigla ${bgSigla} shadow-sm" title="${sigla}">${sigla}</span>`;
                         }
 
                         htmlMese += `
@@ -452,7 +461,7 @@
                         `;
                     }
 
-                    htmlMese += `</div></div>`;
+                    htmlMese += `</div></div></div>`;
                     lista.innerHTML += htmlMese;
                 });
                 return;
@@ -491,7 +500,6 @@
                 const ruoliHtml = ruoliTesto ? `<div class="text-secondary small fw-medium mt-1">${ruoliTesto}</div>` : '';
 
                 if (layoutScelto === 1) {
-                    //  1: Data Box
                     lista.innerHTML += `
                         <div class="card card-mod-1 p-3">
                             <div class="card-body p-1 d-flex justify-content-between align-items-center">
@@ -513,7 +521,6 @@
                         </div>
                     `;
                 } else if (layoutScelto === 2) {
-                    //  2: Strutturata
                     lista.innerHTML += `
                         <div class="card card-mod-2 border">
                             <div class="card-mod-2-header" style="background-color: ${bgHeaderMod2}; color: ${colorHeaderMod2};">
@@ -533,7 +540,6 @@
                         </div>
                     `;
                 } else {
-                    //  3: Timeline
                     lista.innerHTML += `
                         <div class="card card-mod-3 p-3 ${classeCard}">
                             <div class="card-body p-1 d-flex justify-content-between align-items-center">
