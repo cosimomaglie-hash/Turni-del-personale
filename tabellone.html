@@ -41,11 +41,11 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        /* Barra Filtri */
-        .filter-bar {
+        /* Intestazione Titolo Reparto */
+        .reparto-header-card {
             background: var(--card-bg);
             border-radius: 12px;
-            padding: 16px;
+            padding: 16px 20px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.03);
         }
 
@@ -86,8 +86,8 @@
             left: 0;
             z-index: 2;
             background-color: #ffffff;
-            min-width: 170px;
-            max-width: 170px;
+            min-width: 180px;
+            max-width: 180px;
             text-align: left !important;
             padding: 8px 12px !important;
             border-right: 2px solid #cbd5e1 !important;
@@ -143,13 +143,25 @@
             display: block;
         }
 
+        /* Testi Ruolo e Ruolo1 senza sfondo nella colonna del personale */
         .ruolo-operatore {
-            font-size: 0.68rem;
+            font-size: 0.7rem;
             color: var(--text-muted);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             display: block;
+            background: transparent !important;
+        }
+
+        .ruolo1-operatore {
+            font-size: 0.65rem;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+            background: transparent !important;
         }
     </style>
 </head>
@@ -168,21 +180,11 @@
 
     <div class="container-fluid px-3 px-md-4 pb-5">
         
-        <!-- Barra Filtro Reparto -->
-        <div class="filter-bar mb-4 border">
-            <div class="row align-items-center g-3">
-                <div class="col-12 col-md-4">
-                    <label for="filtro-reparto" class="form-label fw-bold text-secondary small mb-1">🏥 Filtra per Reparto</label>
-                    <select id="filtro-reparto" class="form-select fw-semibold" onchange="renderizzaTabellone()">
-                        <option value="TUTTI">Tutti i reparti</option>
-                    </select>
-                </div>
-                <div class="col-12 col-md-8 d-flex flex-wrap gap-3 justify-content-md-end align-items-center pt-md-3">
-                    <span class="small text-muted fw-semibold">Legenda:</span>
-                    <span class="badge bg-primary">Mattina / Altro</span>
-                    <span class="badge bg-success">Pomeriggio</span>
-                    <span class="badge bg-danger">Riposo / Ferie</span>
-                </div>
+        <!-- Indicazione del Reparto Attivo -->
+        <div class="reparto-header-card mb-4 border d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <span class="text-muted small d-block">Reparto Selezionato</span>
+                <h4 id="titolo-reparto" class="fw-bold text-dark mb-0">Caricamento in corso...</h4>
             </div>
         </div>
 
@@ -205,9 +207,18 @@
         const SUPABASE_ANON_KEY = 'sb_publishable_Rx8MkwKEJLqZBZtbp-2IYw_rFUvKFin';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        let tuttiIDati = [];
+        let repartoCorrente = '';
 
         window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            repartoCorrente = urlParams.get('reparto') ? urlParams.get('reparto').trim() : '';
+
+            if (repartoCorrente) {
+                document.getElementById('titolo-reparto').innerText = `🏥 ${repartoCorrente}`;
+            } else {
+                document.getElementById('titolo-reparto').innerText = `🏥 Tutti i Reparti`;
+            }
+
             caricaDatiTabellone();
         };
 
@@ -262,59 +273,31 @@
             loader.style.display = 'none';
 
             if (datiRaccolti.length === 0) {
-                contenitore.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno trovato nel database.</div>';
+                contenitore.innerHTML = `<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno trovato${repartoCorrente ? ' per il reparto ' + repartoCorrente : ''}.</div>`;
                 return;
             }
 
-            tuttiIDati = datiRaccolti;
-            popolaFiltroReparti(tuttiIDati);
-            renderizzaTabellone();
-        }
-
-        function popolaFiltroReparti(data) {
-            const select = document.getElementById('filtro-reparto');
-            const valorePrecedente = select.value;
-
-            const repartiSet = new Set();
-            data.forEach(row => {
-                const rep = row.NomeReparto || row.nomereparto || row.nome_reparto || row.Reparto || '';
-                if (rep.trim() !== '') {
-                    repartiSet.add(rep.trim());
-                }
-            });
-
-            const repartiOrdinati = Array.from(repartiSet).sort();
-
-            select.innerHTML = '<option value="TUTTI">Tutti i reparti</option>';
-            repartiOrdinati.forEach(rep => {
-                const opt = document.createElement('option');
-                opt.value = rep;
-                opt.textContent = rep;
-                select.appendChild(opt);
-            });
-
-            if (repartiOrdinati.includes(valorePrecedente)) {
-                select.value = valorePrecedente;
-            }
-        }
-
-        function renderizzaTabellone() {
-            const contenitore = document.getElementById('contenitore-mesi');
-            contenitore.innerHTML = '';
-
-            const repartoSelezionato = document.getElementById('filtro-reparto').value;
-
-            const datiFiltrati = repartoSelezionato === 'TUTTI'
-                ? tuttiIDati
-                : tuttiIDati.filter(r => {
-                    const rep = r.NomeReparto || r.nomereparto || r.nome_reparto || r.Reparto || '';
-                    return rep.trim().toLowerCase() === repartoSelezionato.toLowerCase();
+            // Filtro robusto in JavaScript per gestire qualsiasi variante di nome colonna o maiuscole/minuscole
+            let datiFiltrati = datiRaccolti;
+            if (repartoCorrente) {
+                const target = repartoCorrente.toLowerCase();
+                datiFiltrati = datiRaccolti.filter(t => {
+                    const rep = t.NomeReparto || t.nomereparto || t.nome_reparto || t.Reparto || '';
+                    return rep.trim().toLowerCase() === target;
                 });
+            }
 
             if (datiFiltrati.length === 0) {
-                contenitore.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun dato disponibile per il reparto selezionato.</div>';
+                contenitore.innerHTML = `<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno trovato per il reparto "${repartoCorrente}".</div>`;
                 return;
             }
+
+            renderizzaTabellone(datiFiltrati);
+        }
+
+        function renderizzaTabellone(datiFiltrati) {
+            const contenitore = document.getElementById('contenitore-mesi');
+            contenitore.innerHTML = '';
 
             const mesiMap = {};
             datiFiltrati.forEach(t => {
@@ -344,7 +327,8 @@
                         personaleMap[chiaveOp] = {
                             nome: nome,
                             matricola: t.Matricola || '',
-                            ruolo: [t.Ruolo, t.Ruolo1].filter(Boolean).join(' - '),
+                            ruolo: t.Ruolo || '',
+                            ruolo1: t.Ruolo1 || '',
                             turniPerGiorno: {}
                         };
                     }
@@ -390,9 +374,10 @@
                 elencoPersonale.forEach(op => {
                     html += `
                         <tr>
-                            <td class="sticky-col" title="${op.nome} ${op.ruolo ? '(' + op.ruolo + ')' : ''}">
+                            <td class="sticky-col" title="${op.nome}">
                                 <span class="nome-operatore">${op.nome}</span>
                                 ${op.ruolo ? `<span class="ruolo-operatore">${op.ruolo}</span>` : ''}
+                                ${op.ruolo1 ? `<span class="ruolo1-operatore">${op.ruolo1}</span>` : ''}
                             </td>
                     `;
 
