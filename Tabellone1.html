@@ -41,7 +41,7 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        /* Barra Filtri */
+        /* Barra Filtro Mese */
         .filter-bar {
             background: var(--card-bg);
             border-radius: 12px;
@@ -194,21 +194,17 @@
 
     <div class="container-fluid px-3 px-md-4 pb-5">
         
-        <!-- Barra Filtri (Reparto e Mese) -->
-        <div class="filter-bar mb-4 border">
-            <div class="row align-items-center g-3">
-                <div class="col-12 col-md-6">
-                    <label for="filtro-reparto" class="form-label fw-bold text-secondary small mb-1">🏥 Filtra per Reparto</label>
-                    <select id="filtro-reparto" class="form-select fw-semibold" onchange="renderizzaTabellone()">
-                        <option value="TUTTI">Tutti i reparti</option>
-                    </select>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label for="filtro-mese" class="form-label fw-bold text-secondary small mb-1">📅 Filtra per Mese</label>
-                    <select id="filtro-mese" class="form-select fw-semibold" onchange="renderizzaTabellone()">
-                        <option value="TUTTI">Tutti i mesi</option>
-                    </select>
-                </div>
+        <!-- Barra Filtri (Info Reparto da URL e Filtro Mese) -->
+        <div class="filter-bar mb-4 border d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <span class="text-muted small d-block">Reparto Selezionato</span>
+                <h4 id="titolo-reparto" class="fw-bold text-dark mb-0">Caricamento in corso...</h4>
+            </div>
+            <div style="min-width: 220px;">
+                <label for="filtro-mese" class="form-label fw-bold text-secondary small mb-1">📅 Filtra per Mese</label>
+                <select id="filtro-mese" class="form-select fw-semibold" onchange="renderizzaTabellone()">
+                    <option value="TUTTI">Tutti i mesi</option>
+                </select>
             </div>
         </div>
 
@@ -232,8 +228,18 @@
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let tuttiIDati = [];
+        let repartoCorrente = '';
 
         window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            repartoCorrente = urlParams.get('reparto') ? urlParams.get('reparto').trim() : '';
+
+            if (repartoCorrente) {
+                document.getElementById('titolo-reparto').innerText = `🏥 ${repartoCorrente}`;
+            } else {
+                document.getElementById('titolo-reparto').innerText = `🏥 Tutti i Reparti`;
+            }
+
             caricaDatiTabellone();
         };
 
@@ -292,48 +298,35 @@
                 return;
             }
 
-            tuttiIDati = datiRaccolti;
-            popolaFiltri(tuttiIDati);
+            // Filtro iniziale per reparto tramite URL
+            let datiFiltratiReparto = datiRaccolti;
+            if (repartoCorrente) {
+                const target = repartoCorrente.toLowerCase();
+                datiFiltratiReparto = datiRaccolti.filter(t => {
+                    const rep = t.NomeReparto || t.nomereparto || t.nome_reparto || t.Reparto || '';
+                    return rep.trim().toLowerCase() === target;
+                });
+            }
+
+            tuttiIDati = datiFiltratiReparto;
+            popolaMesi(tuttiIDati);
             renderizzaTabellone();
         }
 
-        function popolaFiltri(data) {
-            const selectReparto = document.getElementById('filtro-reparto');
+        function popolaMesi(data) {
             const selectMese = document.getElementById('filtro-mese');
-
-            const repValorePrecedente = selectReparto.value;
             const meseValorePrecedente = selectMese.value;
-
-            const repartiSet = new Set();
             const mesiSet = new Set();
 
             data.forEach(row => {
-                const rep = row.NomeReparto || row.nomereparto || row.nome_reparto || row.Reparto || '';
-                if (rep.trim() !== '') {
-                    repartiSet.add(rep.trim());
-                }
                 if (row.Data) {
                     const meseKey = row.Data.substring(0, 7); // YYYY-MM
                     mesiSet.add(meseKey);
                 }
             });
 
-            const repartiOrdinati = Array.from(repartiSet).sort();
             const mesiOrdinati = Array.from(mesiSet).sort();
 
-            // Popola Reparti
-            selectReparto.innerHTML = '<option value="TUTTI">Tutti i reparti</option>';
-            repartiOrdinati.forEach(rep => {
-                const opt = document.createElement('option');
-                opt.value = rep;
-                opt.textContent = rep;
-                selectReparto.appendChild(opt);
-            });
-            if (repartiOrdinati.includes(repValorePrecedente)) {
-                selectReparto.value = repValorePrecedente;
-            }
-
-            // Popola Mesi
             selectMese.innerHTML = '<option value="TUTTI">Tutti i mesi</option>';
             mesiOrdinati.forEach(meseKey => {
                 const [annoStr, meseStr] = meseKey.split('-');
@@ -345,6 +338,7 @@
                 opt.textContent = nomeMeseFormattato.charAt(0).toUpperCase() + nomeMeseFormattato.slice(1);
                 selectMese.appendChild(opt);
             });
+
             if (mesiOrdinati.includes(meseValorePrecedente)) {
                 selectMese.value = meseValorePrecedente;
             }
@@ -354,17 +348,12 @@
             const contenitore = document.getElementById('contenitore-mesi');
             contenitore.innerHTML = '';
 
-            const repartoSelezionato = document.getElementById('filtro-reparto').value;
             const meseSelezionato = document.getElementById('filtro-mese').value;
 
             const datiFiltrati = tuttiIDati.filter(r => {
                 if (!r.Data) return false;
-                const rep = r.NomeReparto || r.nomereparto || r.nome_reparto || r.Reparto || '';
-                const matchReparto = (repartoSelezionato === 'TUTTI' || rep.trim().toLowerCase() === repartoSelezionato.toLowerCase());
                 const meseKey = r.Data.substring(0, 7);
-                const matchMese = (meseSelezionato === 'TUTTI' || meseKey === meseSelezionato);
-
-                return matchReparto && matchMese;
+                return (meseSelezionato === 'TUTTI' || meseKey === meseSelezionato);
             });
 
             if (datiFiltrati.length === 0) {
@@ -460,10 +449,10 @@
                             const turnoVal = (turno.Turno || turno.turno || '').trim();
                             const siglaVal = (turno.SiglaTurno || turno.siglaturno || turnoVal || '').trim();
                             
-                            // Controllo dati sensibili (R Ferie, Mal, L 104, PE - case insensitive e pulito)
+                            // Controllo dati sensibili (R, Ferie, Mal, L 104, PE)
                             const checkTarget = (siglaVal + ' ' + turnoVal).toUpperCase();
                             const isSensibile = checkTarget === 'R' || 
-                                                checkTarget.includes('R FERIE') || 
+                                                checkTarget.includes('FERIE') || 
                                                 checkTarget.includes('MAL') || 
                                                 checkTarget.includes('L 104') || 
                                                 checkTarget.includes('PE');
