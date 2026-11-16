@@ -86,8 +86,8 @@
             left: 0;
             z-index: 2;
             background-color: #ffffff;
-            min-width: 170px;
-            max-width: 170px;
+            min-width: 180px;
+            max-width: 180px;
             text-align: left !important;
             padding: 8px 12px !important;
             border-right: 2px solid #cbd5e1 !important;
@@ -143,13 +143,25 @@
             display: block;
         }
 
+        /* Testi Ruolo e Ruolo1 senza sfondo nella colonna del personale */
         .ruolo-operatore {
-            font-size: 0.68rem;
+            font-size: 0.7rem;
             color: var(--text-muted);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             display: block;
+            background: transparent !important;
+        }
+
+        .ruolo1-operatore {
+            font-size: 0.65rem;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+            background: transparent !important;
         }
     </style>
 </head>
@@ -173,12 +185,6 @@
             <div>
                 <span class="text-muted small d-block">Reparto Selezionato</span>
                 <h4 id="titolo-reparto" class="fw-bold text-dark mb-0">Caricamento in corso...</h4>
-            </div>
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <span class="small text-muted fw-semibold">Legenda:</span>
-                <span class="badge bg-primary">Mattina / Altro</span>
-                <span class="badge bg-success">Pomeriggio</span>
-                <span class="badge bg-danger">Riposo / Ferie</span>
             </div>
         </div>
 
@@ -216,8 +222,10 @@
             caricaDatiTabellone();
         };
 
+        // Caricamento con paginazione a blocchi per evitare limiti di righe
         async function caricaDatiTabellone() {
             const loader = document.getElementById('loader');
+            const loaderText = document.getElementById('loader-text');
             const contenitore = document.getElementById('contenitore-mesi');
             
             contenitore.innerHTML = '';
@@ -226,33 +234,65 @@
             const ora = new Date();
             const primoGiornoMeseCorrente = `${ora.getFullYear()}-${String(ora.getMonth() + 1).padStart(2, '0')}-01`;
 
-            // Query diretta filtrata sul server Supabase per massima velocità ed efficienza
-            let query = supabaseClient
-                .from('Turnistica')
-                .select('*')
-                .gte('Data', primoGiornoMeseCorrente)
-                .range(0, 999); // Limite sicuro e rapido
+            let datiRaccolti = [];
+            let pageSize = 1000;
+            let page = 0;
+            let hasMore = true;
 
-            if (repartoCorrente) {
-                query = query.eq('NomeReparto', repartoCorrente);
-            }
+            try {
+                while (hasMore) {
+                    loaderText.innerText = `Caricamento dati in corso (recuperati ${datiRaccolti.length} record)...`;
 
-            const { data, error } = await query.order('Data', { ascending: true });
+                    const { data, error } = await supabaseClient
+                        .from('Turnistica')
+                        .select('*')
+                        .gte('Data', primoGiornoMeseCorrente)
+                        .order('Data', { ascending: true })
+                        .range(page * pageSize, (page + 1) * pageSize - 1);
 
-            loader.style.display = 'none';
+                    if (error) throw error;
 
-            if (error) {
+                    if (data && data.length > 0) {
+                        datiRaccolti = datiRaccolti.concat(data);
+                        if (data.length < pageSize) {
+                            hasMore = false;
+                        } else {
+                            page++;
+                        }
+                    } else {
+                        hasMore = false;
+                    }
+                }
+            } catch (err) {
+                loader.style.display = 'none';
                 contenitore.innerHTML = '<div class="alert alert-danger rounded-3 border-0 shadow-sm p-3">Errore di connessione al database. Riprova più tardi.</div>';
-                console.error(error);
+                console.error(err);
                 return;
             }
 
-            if (!data || data.length === 0) {
+            loader.style.display = 'none';
+
+            if (datiRaccolti.length === 0) {
                 contenitore.innerHTML = `<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno trovato${repartoCorrente ? ' per il reparto ' + repartoCorrente : ''}.</div>`;
                 return;
             }
 
-            renderizzaTabellone(data);
+            // Filtro robusto in JavaScript per gestire qualsiasi variante di nome colonna o maiuscole/minuscole
+            let datiFiltrati = datiRaccolti;
+            if (repartoCorrente) {
+                const target = repartoCorrente.toLowerCase();
+                datiFiltrati = datiRaccolti.filter(t => {
+                    const rep = t.NomeReparto || t.nomereparto || t.nome_reparto || t.Reparto || '';
+                    return rep.trim().toLowerCase() === target;
+                });
+            }
+
+            if (datiFiltrati.length === 0) {
+                contenitore.innerHTML = `<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno trovato per il reparto "${repartoCorrente}".</div>`;
+                return;
+            }
+
+            renderizzaTabellone(datiFiltrati);
         }
 
         function renderizzaTabellone(datiFiltrati) {
@@ -287,7 +327,8 @@
                         personaleMap[chiaveOp] = {
                             nome: nome,
                             matricola: t.Matricola || '',
-                            ruolo: [t.Ruolo, t.Ruolo1].filter(Boolean).join(' - '),
+                            ruolo: t.Ruolo || '',
+                            ruolo1: t.Ruolo1 || '',
                             turniPerGiorno: {}
                         };
                     }
@@ -333,9 +374,10 @@
                 elencoPersonale.forEach(op => {
                     html += `
                         <tr>
-                            <td class="sticky-col" title="${op.nome} ${op.ruolo ? '(' + op.ruolo + ')' : ''}">
+                            <td class="sticky-col" title="${op.nome}">
                                 <span class="nome-operatore">${op.nome}</span>
                                 ${op.ruolo ? `<span class="ruolo-operatore">${op.ruolo}</span>` : ''}
+                                ${op.ruolo1 ? `<span class="ruolo1-operatore">${op.ruolo1}</span>` : ''}
                             </td>
                     `;
 
