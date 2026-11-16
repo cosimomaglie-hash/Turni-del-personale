@@ -237,15 +237,15 @@
         <div id="search-section" class="card search-card p-4 p-md-5 my-4">
             <div class="text-center mb-4">
                 <h4 class="fw-bold text-dark">Seleziona Operatore</h4>
-                <p class="text-muted small">Scegli un dipendente dall'elenco per consultare i turni</p>
+                <p id="loading-msg" class="text-muted small">Caricamento elenco dipendenti in corso...</p>
             </div>
             <div class="mb-3">
                 <label for="select-dipendente" class="form-label fw-semibold text-secondary small">Dipendente</label>
-                <select id="select-dipendente" class="form-select form-select-lg fw-semibold">
-                    <option value="">Caricamento elenco in corso...</option>
+                <select id="select-dipendente" class="form-select form-select-lg fw-semibold" disabled>
+                    <option value="">Attendere il caricamento...</option>
                 </select>
             </div>
-            <button onclick="avviaRicerca()" class="btn btn-primary btn-lg w-100 shadow-sm mt-2">Visualizza Turni</button>
+            <button onclick="avviaRicerca()" id="btn-visualizza" class="btn btn-primary btn-lg w-100 shadow-sm mt-2" disabled>Visualizza Turni</button>
         </div>
 
         <!-- SCHERMATA RISULTATI -->
@@ -298,37 +298,69 @@
             popolaElencoDipendenti();
         };
 
+        // Paginazione a blocchi per scaricare TUTTI i dipendenti senza limiti di righe
         async function popolaElencoDipendenti() {
             const select = document.getElementById('select-dipendente');
-            
-            // Scarica tutti i record per estrarre l'elenco univoco del personale
-            const { data, error } = await supabaseClient
-                .from('Turnistica')
-                .select('Dipendente1, Matricola')
-                .order('Dipendente1', { ascending: true });
+            const loadingMsg = document.getElementById('loading-msg');
+            const btnVisualizza = document.getElementById('btn-visualizza');
 
-            if (error) {
+            let tuttiIDati = [];
+            let pageSize = 1000;
+            let page = 0;
+            let hasMore = true;
+
+            try {
+                while (hasMore) {
+                    loadingMsg.innerText = `Caricamento in corso (letti ${tuttiIDati.length} record)...`;
+
+                    const { data, error } = await supabaseClient
+                        .from('Turnistica')
+                        .select('Dipendente1, Matricola')
+                        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+                    if (error) throw error;
+
+                    if (data && data.length > 0) {
+                        tuttiIDati = tuttiIDati.concat(data);
+                        if (data.length < pageSize) {
+                            hasMore = false;
+                        } else {
+                            page++;
+                        }
+                    } else {
+                        hasMore = false;
+                    }
+                }
+            } catch (error) {
                 select.innerHTML = '<option value="">Errore di caricamento dipendenti</option>';
+                loadingMsg.innerText = 'Errore di connessione al database.';
                 console.error(error);
                 return;
             }
 
-            // Estrae nomi unici
+            // Estrae nomi unici e puliti
             const dipendentiSet = new Map();
-            data.forEach(row => {
+            tuttiIDati.forEach(row => {
                 const nome = (row.Dipendente1 || '').trim();
                 if (nome) {
                     dipendentiSet.set(nome, row.Matricola || '');
                 }
             });
 
+            // Ordina alfabeticamente
+            const dipendentiOrdinati = Array.from(dipendentiSet.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+
             select.innerHTML = '<option value="">-- Seleziona un operatore --</option>';
-            dipendentiSet.forEach((matr, nome) => {
+            dipendentiOrdinati.forEach(([nome, matr]) => {
                 const opt = document.createElement('option');
                 opt.value = nome;
                 opt.textContent = nome + (matr ? ` (Matr: ${matr})` : '');
                 select.appendChild(opt);
             });
+
+            select.disabled = false;
+            btnVisualizza.disabled = false;
+            loadingMsg.innerText = `Scegli un dipendente dall'elenco (${dipendentiOrdinati.length} operatori trovati)`;
         }
 
         function avviaRicerca() {
