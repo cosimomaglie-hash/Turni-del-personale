@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <title>Chi c'è oggi - Turni per Reparto</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icona.png">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Navbar */
+        .app-navbar {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Barra Selezione Data */
+        .filter-bar {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+        }
+
+        /* Card Reparto */
+        .reparto-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .reparto-header {
+            background-color: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px 20px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dipendente-row {
+            padding: 10px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dipendente-row:last-child {
+            border-bottom: none;
+        }
+
+        .nome-dipendente {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+
+        .dettagli-dipendente {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .turno-badge {
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Barra Superiore -->
+    <nav class="navbar app-navbar py-3 mb-4">
+        <div class="container-fluid px-3 px-md-4 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <span class="navbar-brand mb-0 h1 fw-bold fs-5 text-white ms-1">👥 Chi c'è oggi</span>
+            </div>
+            <button onclick="caricaDatiPerData()" class="btn btn-light btn-sm rounded-pill px-3 fw-semibold shadow-sm">🔄 Aggiorna</button>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-3 px-md-4 pb-5">
+        
+        <!-- Barra Filtro Data -->
+        <div class="filter-bar mb-4 border">
+            <div class="row align-items-center g-3">
+                <div class="col-12 col-md-4">
+                    <label for="seleziona-data" class="form-label fw-bold text-secondary small mb-1">📅 Seleziona Data</label>
+                    <input type="date" id="seleziona-data" class="form-control fw-semibold" onchange="caricaDatiPerData()">
+                </div>
+            </div>
+        </div>
+
+        <!-- Loader -->
+        <div id="loader" class="text-center py-5" style="display: none;">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+            <p id="loader-text" class="mt-3 text-muted fw-medium">Caricamento presenza in corso...</p>
+        </div>
+
+        <!-- Contenitore Reparti -->
+        <div id="contenitore-reparti">
+            <!-- I reparti e i dipendenti verranno generati dinamicamente qui -->
+        </div>
+
+    </div>
+
+    <script>
+        // --- CONFIGURAZIONE SUPABASE ---
+        const SUPABASE_URL = 'https://uwoniioltnihmqakkzjv.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_Rx8MkwKEJLqZBZtbp-2IYw_rFUvKFin';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        window.onload = () => {
+            // Imposta la data odierna nel formato YYYY-MM-DD
+            const oggi = new Date().toISOString().split('T')[0];
+            document.getElementById('seleziona-data').value = oggi;
+            caricaDatiPerData();
+        };
+
+        async function caricaDatiPerData() {
+            const dataSelezionata = document.getElementById('seleziona-data').value;
+            const loader = document.getElementById('loader');
+            const contenitore = document.getElementById('contenitore-reparti');
+            
+            if (!dataSelezionata) return;
+
+            contenitore.innerHTML = '';
+            loader.style.display = 'block';
+
+            try {
+                // Interroga direttamente il database per la data specifica
+                const { data, error } = await supabaseClient
+                    .from('Turnistica')
+                    .select('*')
+                    .eq('Data', dataSelezionata)
+                    .order('NomeReparto', { ascending: true });
+
+                if (error) throw error;
+
+                loader.style.display = 'none';
+
+                if (!data || data.length === 0) {
+                    contenitore.innerHTML = `<div class=\"alert alert-info rounded-3 border-0 shadow-sm p-4 text-center\">Nessun turno registrato per la data ${dataSelezionata}.</div>`;
+                    return;
+                }
+
+                renderizzaReparti(data);
+
+            } catch (err) {
+                loader.style.display = 'none';
+                contenitore.innerHTML = '<div class="alert alert-danger rounded-3 border-0 shadow-sm p-3">Errore di connessione al database. Riprova più tardi.</div>';
+                console.error(err);
+            }
+        }
+
+        function renderizzaReparti(dati) {
+            const contenitore = document.getElementById('contenitore-reparti');
+            contenitore.innerHTML = '';
+
+            // Raggruppa i dati per Reparto
+            const repartiMap = {};
+            dati.forEach(t => {
+                const reparto = (t.NomeReparto || t.nomereparto || t.nome_reparto || t.Reparto || 'Non specificato').trim();
+                if (!repartiMap[reparto]) {
+                    repartiMap[reparto] = [];
+                }
+                repartiMap[reparto].push(t);
+            });
+
+            // Ordina alfabeticamente i reparti
+            const repartiOrdinati = Object.keys(repartiMap).sort();
+
+            repartiOrdinati.forEach(reparto => {
+                const dipendenti = repartiMap[reparto].sort((a, b) => {
+                    const nomeA = (a.Dipendente1 || a.dipendente1 || '').trim();
+                    const nomeB = (b.Dipendente1 || b.dipendente1 || '').trim();
+                    return nomeA.localeCompare(nomeB);
+                });
+
+                let html = `
+                    <div class="reparto-card">
+                        <div class="reparto-header">
+                            <span>🏥 ${reparto}</span>
+                            <span class="badge bg-primary rounded-pill">${dipendenti.length} presenti</span>
+                        </div>
+                        <div class="reparto-body">
+                `;
+
+                dipendenti.forEach(d => {
+                    const nome = (d.Dipendente1 || d.dipendente1 || `Matr. ${d.Matricola || d.matricola || 'N/D'}`).trim();
+                    const turnoVal = d.Turno || d.turno || '';
+                    const sigla = d.SiglaTurno || d.siglaturno || turnoVal || '-';
+                    const ruolo = d.Ruolo || d.ruolo || '';
+                    const ruolo1 = d.Ruolo1 || d.ruolo1 || '';
+                    const orario = d.Orario || d.orario || '';
+
+                    // Colore badge turno
+                    const desc = turnoVal.toLowerCase();
+                    let bgClass = 'bg-primary text-white';
+                    if (desc.includes('pomeriggio')) {
+                        bgClass = 'bg-success text-white';
+                    } else if (desc.includes('riposo') || desc.includes('festivit') || desc.includes('ferie')) {
+                        bgClass = 'bg-danger text-white';
+                    }
+
+                    html += `
+                        <div class="dipendente-row">
+                            <div>
+                                <span class="nome-dipendente">${nome}</span>
+                                <div class="dettagli-dipendente">
+                                    ${ruolo ? `<span>${ruolo}</span>` : ''}
+                                    ${ruolo1 ? `<span> • ${ruolo1}</span>` : ''}
+                                    ${orario ? `<span> • ${orario}</span>` : ''}
+                                </div>
+                            </div>
+                            <div>
+                                <span class="turno-badge ${bgClass}" title="${turnoVal}">${sigla}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+
+                contenitore.innerHTML += html;
+            });
+        }
+    </script>
+</body>
+</html>
