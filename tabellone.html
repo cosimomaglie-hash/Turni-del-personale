@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -123,7 +123,7 @@
         /* Badge Sigla nella cella */
         .sigla-pill {
             display: inline-block;
-            width: 34px;
+            width: 36px;
             padding: 3px 2px;
             border-radius: 5px;
             font-size: 0.72rem;
@@ -218,7 +218,6 @@
             contenitore.innerHTML = '';
             loader.style.display = 'block';
 
-            // Carica i turni a partire dal primo giorno del mese corrente
             const ora = new Date();
             const primoGiornoMeseCorrente = `${ora.getFullYear()}-${String(ora.getMonth() + 1).padStart(2, '0')}-01`;
 
@@ -250,7 +249,6 @@
             const select = document.getElementById('filtro-reparto');
             const valorePrecedente = select.value;
 
-            // Estrae i reparti univoci in ordine alfabetico
             const repartiSet = new Set();
             data.forEach(row => {
                 if (row.NomeReparto && row.NomeReparto.trim() !== '') {
@@ -268,7 +266,6 @@
                 select.appendChild(opt);
             });
 
-            // Ripristina la selezione se ancora valida
             if (repartiOrdinati.includes(valorePrecedente)) {
                 select.value = valorePrecedente;
             }
@@ -280,7 +277,6 @@
 
             const repartoSelezionato = document.getElementById('filtro-reparto').value;
 
-            // Filtra i dati in base al reparto scelto
             const datiFiltrati = repartoSelezionato === 'TUTTI'
                 ? tuttiIDati
                 : tuttiIDati.filter(r => (r.NomeReparto || '').trim() === repartoSelezionato);
@@ -290,7 +286,6 @@
                 return;
             }
 
-            // Raggruppa i record per Mese (chiave: "YYYY-MM")
             const mesiMap = {};
             datiFiltrati.forEach(t => {
                 if (!t.Data) return;
@@ -301,7 +296,6 @@
 
             const giorniSettimanaCorti = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 
-            // Genera una tabella per ciascun mese in ordine cronologico
             Object.keys(mesiMap).sort().forEach(meseKey => {
                 const [annoStr, meseStr] = meseKey.split('-');
                 const anno = parseInt(annoStr, 10);
@@ -311,8 +305,6 @@
                 const dataTitolo = new Date(anno, mese - 1, 1);
                 const titoloMese = dataTitolo.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
 
-                // Raggruppa il personale univoco per questo mese
-                // Chiave univoca operatore: Dipendente1 + Matricola
                 const personaleMap = {};
                 mesiMap[meseKey].forEach(t => {
                     const nome = (t.Dipendente1 || `Matr. ${t.Matricola || 'N/D'}`).trim();
@@ -330,10 +322,8 @@
                     personaleMap[chiaveOp].turniPerGiorno[giornoNum] = t;
                 });
 
-                // Ordina il personale alfabeticamente per nominativo
                 const elencoPersonale = Object.values(personaleMap).sort((a, b) => a.nome.localeCompare(b.nome));
 
-                // Costruzione HTML della card mensile
                 let html = `
                     <div class="card border-0 shadow-sm p-3 rounded-4">
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -347,10 +337,9 @@
                                         <th class="sticky-col">Personale</th>
                 `;
 
-                // Intestazioni colonne giorni (1..31)
                 for (let g = 1; g <= giorniNelMese; g++) {
                     const dObj = new Date(anno, mese - 1, g);
-                    const dayOfWeek = dObj.getDay(); // 0 = Dom, 6 = Sab
+                    const dayOfWeek = dObj.getDay();
                     const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
                     const nomeGiorno = giorniSettimanaCorti[dayOfWeek];
 
@@ -368,7 +357,6 @@
                                 <tbody>
                 `;
 
-                // Righe del personale
                 elencoPersonale.forEach(op => {
                     html += `
                         <tr>
@@ -393,8 +381,9 @@
                                 bgClass = 'bg-danger text-white';
                             }
 
+                            // Utilizzo prioritario di SiglaTurno come richiesto
                             const sigla = turno.SiglaTurno || turno.Turno || '-';
-                            const tooltipText = `${turno.Turno || ''}${turno.Orario ? ' (' + turno.Orario + ')' : ''}${turno.Note ? ' - Note: ' + turno.Note : ''}`;
+                            const tooltipText = `Turno: ${turno.Turno || 'N/D'}${turno.Orario ? ' - Orario: ' + turno.Orario : ''}${turno.Note ? ' - Note: ' + turno.Note : ''}`;
 
                             html += `
                                 <td class="${isWeekend ? 'cell-weekend' : ''}">
