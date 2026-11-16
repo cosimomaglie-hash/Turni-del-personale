@@ -463,11 +463,13 @@
 
                             // Controllo se il contenuto corrisponde a R, Ferie, Mal, L 104 o PE
                             const isSpeciale = checkTarget === 'R' || 
+                                               checkTarget === 'ASP' || 
+                                               checkTarget === 'PE' || 
                                                checkTarget.includes('FERIE') || 
                                                checkTarget.includes('MAL') || 
                                                checkTarget.includes('L 104') || 
-                                               checkTarget.includes('PE') || 
-                                               checkTarget.includes('ASP');
+                                               checkTarget.includes('RIPOSO') || 
+                                               checkTarget.includes('FESTIVIT');
 
                             let bgClass = 'bg-primary text-white';
                             if (isSpeciale || checkTarget.includes('RIPOSO') || checkTarget.includes('FESTIVIT')) {
