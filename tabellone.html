@@ -41,11 +41,11 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        /* Intestazione Titolo Reparto */
-        .reparto-header-card {
+        /* Barra Filtro Reparto */
+        .filter-bar {
             background: var(--card-bg);
             border-radius: 12px;
-            padding: 16px 20px;
+            padding: 16px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.03);
         }
 
@@ -180,11 +180,15 @@
 
     <div class="container-fluid px-3 px-md-4 pb-5">
         
-        <!-- Indicazione del Reparto Attivo -->
-        <div class="reparto-header-card mb-4 border d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div>
-                <span class="text-muted small d-block">Reparto Selezionato</span>
-                <h4 id="titolo-reparto" class="fw-bold text-dark mb-0">Caricamento in corso...</h4>
+        <!-- Barra Filtro Reparto -->
+        <div class="filter-bar mb-4 border">
+            <div class="row align-items-center g-3">
+                <div class="col-12 col-md-4">
+                    <label for="filtro-reparto" class="form-label fw-bold text-secondary small mb-1">🏥 Filtra per Reparto</label>
+                    <select id="filtro-reparto" class="form-select fw-semibold" onchange="renderizzaTabellone()">
+                        <option value="TUTTI">Tutti i reparti</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -207,18 +211,9 @@
         const SUPABASE_ANON_KEY = 'sb_publishable_Rx8MkwKEJLqZBZtbp-2IYw_rFUvKFin';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        let repartoCorrente = '';
+        let tuttiIDati = [];
 
         window.onload = () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            repartoCorrente = urlParams.get('reparto') ? urlParams.get('reparto').trim() : '';
-
-            if (repartoCorrente) {
-                document.getElementById('titolo-reparto').innerText = `🏥 ${repartoCorrente}`;
-            } else {
-                document.getElementById('titolo-reparto').innerText = `🏥 Tutti i Reparti`;
-            }
-
             caricaDatiTabellone();
         };
 
@@ -273,31 +268,59 @@
             loader.style.display = 'none';
 
             if (datiRaccolti.length === 0) {
-                contenitore.innerHTML = `<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno trovato${repartoCorrente ? ' per il reparto ' + repartoCorrente : ''}.</div>`;
+                contenitore.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno trovato nel database.</div>';
                 return;
             }
 
-            // Filtro robusto in JavaScript per gestire qualsiasi variante di nome colonna o maiuscole/minuscole
-            let datiFiltrati = datiRaccolti;
-            if (repartoCorrente) {
-                const target = repartoCorrente.toLowerCase();
-                datiFiltrati = datiRaccolti.filter(t => {
-                    const rep = t.NomeReparto || t.nomereparto || t.nome_reparto || t.Reparto || '';
-                    return rep.trim().toLowerCase() === target;
-                });
-            }
-
-            if (datiFiltrati.length === 0) {
-                contenitore.innerHTML = `<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno trovato per il reparto "${repartoCorrente}".</div>`;
-                return;
-            }
-
-            renderizzaTabellone(datiFiltrati);
+            tuttiIDati = datiRaccolti;
+            popolaFiltroReparti(tuttiIDati);
+            renderizzaTabellone();
         }
 
-        function renderizzaTabellone(datiFiltrati) {
+        function popolaFiltroReparti(data) {
+            const select = document.getElementById('filtro-reparto');
+            const valorePrecedente = select.value;
+
+            const repartiSet = new Set();
+            data.forEach(row => {
+                const rep = row.NomeReparto || row.nomereparto || row.nome_reparto || row.Reparto || '';
+                if (rep.trim() !== '') {
+                    repartiSet.add(rep.trim());
+                }
+            });
+
+            const repartiOrdinati = Array.from(repartiSet).sort();
+
+            select.innerHTML = '<option value="TUTTI">Tutti i reparti</option>';
+            repartiOrdinati.forEach(rep => {
+                const opt = document.createElement('option');
+                opt.value = rep;
+                opt.textContent = rep;
+                select.appendChild(opt);
+            });
+
+            if (repartiOrdinati.includes(valorePrecedente)) {
+                select.value = valorePrecedente;
+            }
+        }
+
+        function renderizzaTabellone() {
             const contenitore = document.getElementById('contenitore-mesi');
             contenitore.innerHTML = '';
+
+            const repartoSelezionato = document.getElementById('filtro-reparto').value;
+
+            const datiFiltrati = repartoSelezionato === 'TUTTI'
+                ? tuttiIDati
+                : tuttiIDati.filter(r => {
+                    const rep = r.NomeReparto || r.nomereparto || r.nome_reparto || r.Reparto || '';
+                    return rep.trim().toLowerCase() === repartoSelezionato.toLowerCase();
+                });
+
+            if (datiFiltrati.length === 0) {
+                contenitore.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun dato disponibile per il reparto selezionato.</div>';
+                return;
+            }
 
             const mesiMap = {};
             datiFiltrati.forEach(t => {
