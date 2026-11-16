@@ -499,6 +499,9 @@
                 const orarioHtml = t.Orario ? `<div class="text-muted small fst-italic mt-1">${t.Orario}</div>` : '';
                 const ruoliTesto = [t.Ruolo, t.Ruolo1].filter(Boolean).join(' - ');
                 const ruoliHtml = ruoliTesto ? `<div class="text-secondary small fw-medium mt-1">${ruoliTesto}</div>` : '';
+                // Nuovo codice corretto:
+                const nomeReparto = primoRecord.NomeReparto || primoRecord.nomereparto || primoRecord.nome_reparto || '';
+                const repartoPulito = nomeReparto.trim();
 
                 if (layoutScelto === 1) {
                     lista.innerHTML += `
