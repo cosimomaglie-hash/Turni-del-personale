@@ -41,7 +41,7 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        /* Barra Selezione Data */
+        /* Barra Filtri */
         .filter-bar {
             background: var(--card-bg);
             border-radius: 12px;
@@ -115,12 +115,18 @@
 
     <div class="container-fluid px-3 px-md-4 pb-5">
         
-        <!-- Barra Filtro Data -->
+        <!-- Barra Filtri (Data e Reparto) -->
         <div class="filter-bar mb-4 border">
             <div class="row align-items-center g-3">
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-6">
                     <label for="seleziona-data" class="form-label fw-bold text-secondary small mb-1">📅 Seleziona Data</label>
                     <input type="date" id="seleziona-data" class="form-control fw-semibold" onchange="caricaDatiPerData()">
+                </div>
+                <div class="col-12 col-md-6">
+                    <label for="filtro-reparto" class="form-label fw-bold text-secondary small mb-1">🏥 Filtra per Reparto</label>
+                    <select id="filtro-reparto" class="form-select fw-semibold" onchange="applicaFiltroReparto()">
+                        <option value="TUTTI">Tutti i reparti</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -144,6 +150,8 @@
         const SUPABASE_ANON_KEY = 'sb_publishable_Rx8MkwKEJLqZBZtbp-2IYw_rFUvKFin';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+        let datiGiornataCorrente = [];
+
         window.onload = () => {
             // Imposta la data odierna nel formato YYYY-MM-DD
             const oggi = new Date().toISOString().split('T')[0];
@@ -162,7 +170,7 @@
             loader.style.display = 'block';
 
             try {
-                // Interroga direttamente il database per la data specifica
+                // Interroga direttamente il database per la data specifica ordinando per reparto
                 const { data, error } = await supabaseClient
                     .from('Turnistica')
                     .select('*')
@@ -174,10 +182,14 @@
                 loader.style.display = 'none';
 
                 if (!data || data.length === 0) {
-                    contenitore.innerHTML = `<div class=\"alert alert-info rounded-3 border-0 shadow-sm p-4 text-center\">Nessun turno registrato per la data ${dataSelezionata}.</div>`;
+                    datiGiornataCorrente = [];
+                    popolaFiltroReparti([]);
+                    contenitore.innerHTML = `<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno registrato per la data ${dataSelezionata}.</div>`;
                     return;
                 }
 
+                datiGiornataCorrente = data;
+                popolaFiltroReparti(data);
                 renderizzaReparti(data);
 
             } catch (err) {
@@ -187,9 +199,57 @@
             }
         }
 
+        function popolaFiltroReparti(data) {
+            const select = document.getElementById('filtro-reparto');
+            const valorePrecedente = select.value;
+
+            const repartiSet = new Set();
+            data.forEach(row => {
+                const rep = row.NomeReparto || row.nomereparto || row.nome_reparto || row.Reparto || '';
+                if (rep.trim() !== '') {
+                    repartiSet.add(rep.trim());
+                }
+            });
+
+            const repartiOrdinati = Array.from(repartiSet).sort();
+
+            select.innerHTML = '<option value="TUTTI">Tutti i reparti</option>';
+            repartiOrdinati.forEach(rep => {
+                const opt = document.createElement('option');
+                opt.value = rep;
+                opt.textContent = rep;
+                select.appendChild(opt);
+            });
+
+            // Mantiene la selezione precedente se ancora presente, altrimenti torna a TUTTI
+            if (repartiOrdinati.includes(valorePrecedente)) {
+                select.value = valorePrecedente;
+            } else {
+                select.value = 'TUTTI';
+            }
+        }
+
+        function applicaFiltroReparto() {
+            const repartoSelezionato = document.getElementById('filtro-reparto').value;
+
+            const datiFiltrati = repartoSelezionato === 'TUTTI'
+                ? datiGiornataCorrente
+                : datiGiornataCorrente.filter(t => {
+                    const rep = t.NomeReparto || t.nomereparto || t.nome_reparto || t.Reparto || '';
+                    return rep.trim().toLowerCase() === repartoSelezionato.toLowerCase();
+                });
+
+            renderizzaReparti(datiFiltrati);
+        }
+
         function renderizzaReparti(dati) {
             const contenitore = document.getElementById('contenitore-reparti');
             contenitore.innerHTML = '';
+
+            if (!dati || dati.length === 0) {
+                contenitore.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun dato disponibile per i filtri selezionati.</div>';
+                return;
+            }
 
             // Raggruppa i dati per Reparto
             const repartiMap = {};
