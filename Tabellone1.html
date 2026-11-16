@@ -73,14 +73,15 @@
             border-bottom: 1px solid #e2e8f0;
             padding: 4px 2px;
             text-align: center;
-            vertical-align: middle;
+            /* Impostazione allineamento in alto per ogni cella del calendario */
+            vertical-align: top !important;
         }
 
         .matrix-table tr:last-child td {
             border-bottom: none;
         }
 
-        /* Prima colonna fissa (Personale) */
+        /* Prima colonna fissa (Personale) allineata in alto */
         .sticky-col {
             position: sticky;
             left: 0;
@@ -92,6 +93,7 @@
             padding: 8px 12px !important;
             border-right: 2px solid #cbd5e1 !important;
             box-shadow: 2px 0 5px -2px rgba(0,0,0,0.05);
+            vertical-align: top !important;
         }
 
         .matrix-table thead th.sticky-col {
@@ -100,6 +102,7 @@
             font-weight: 700;
             color: var(--text-main);
             font-size: 0.8rem;
+            vertical-align: middle !important;
         }
 
         /* Intestazione Giorni */
@@ -109,6 +112,7 @@
             background-color: #f8fafc;
             font-size: 0.72rem;
             line-height: 1.2;
+            vertical-align: middle !important;
         }
 
         .day-header.weekend {
@@ -138,7 +142,8 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            margin-bottom: 1px;
+            margin-top: 2px;
+            margin-bottom: 2px;
         }
 
         .nome-operatore {
@@ -151,7 +156,7 @@
             display: block;
         }
 
-        /* Ruolo e Ruolo1 dentro la cella del giorno (senza sfondo) */
+        /* Ruolo e Ruolo1 dentro la cella del giorno (senza sfondo, allineati in alto) */
         .cell-ruolo {
             font-size: 0.58rem;
             color: var(--text-muted);
@@ -159,8 +164,9 @@
             overflow: hidden;
             text-overflow: ellipsis;
             display: block;
-            line-height: 1;
+            line-height: 1.1;
             background: transparent !important;
+            margin-bottom: 1px;
         }
 
         .cell-ruolo1 {
@@ -170,7 +176,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             display: block;
-            line-height: 1;
+            line-height: 1.1;
             background: transparent !important;
         }
     </style>
@@ -246,114 +252,7 @@
 
             try {
                 while (hasMore) {
-                    loaderText.innerText = `Caricamento dati in corso (recuperati ${datiRaccolti.length} record)...`;
-
-                    const { data, error } = await supabaseClient
-                        .from('Turnistica')
-                        .select('*')
-                        .gte('Data', primoGiornoMeseCorrente)
-                        .order('Data', { ascending: true })
-                        .range(page * pageSize, (page + 1) * pageSize - 1);
-
-                    if (error) throw error;
-
-                    if (data && data.length > 0) {
-                        datiRaccolti = datiRaccolti.concat(data);
-                        if (data.length < pageSize) {
-                            hasMore = false;
-                        } else {
-                            page++;
-                        }
-                    } else {
-                        hasMore = false;
-                    }
-                }
-            } catch (err) {
-                loader.style.display = 'none';
-                contenitore.innerHTML = '<div class="alert alert-danger rounded-3 border-0 shadow-sm p-3">Errore di connessione al database. Riprova più tardi.</div>';
-                console.error(err);
-                return;
-            }
-
-            loader.style.display = 'none';
-
-            if (datiRaccolti.length === 0) {
-                contenitore.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno trovato nel database.</div>';
-                return;
-            }
-
-            tuttiIDati = datiRaccolti;
-            popolaFiltroReparti(tuttiIDati);
-            renderizzaTabellone();
-        }
-
-        function popolaFiltroReparti(data) {
-            const select = document.getElementById('filtro-reparto');
-            const valorePrecedente = select.value;
-
-            const repartiSet = new Set();
-            data.forEach(row => {
-                const rep = row.NomeReparto || row.nomereparto || row.nome_reparto || row.Reparto || '';
-                if (rep.trim() !== '') {
-                    repartiSet.add(rep.trim());
-                }
-            });
-
-            const repartiOrdinati = Array.from(repartiSet).sort();
-
-            select.innerHTML = '<option value="TUTTI">Tutti i reparti</option>';
-            repartiOrdinati.forEach(rep => {
-                const opt = document.createElement('option');
-                opt.value = rep;
-                opt.textContent = rep;
-                select.appendChild(opt);
-            });
-
-            if (repartiOrdinati.includes(valorePrecedente)) {
-                select.value = valorePrecedente;
-            }
-        }
-
-        function renderizzaTabellone() {
-            const contenitore = document.getElementById('contenitore-mesi');
-            contenitore.innerHTML = '';
-
-            const repartoSelezionato = document.getElementById('filtro-reparto').value;
-
-            const datiFiltrati = repartoSelezionato === 'TUTTI'
-                ? tuttiIDati
-                : tuttiIDati.filter(r => {
-                    const rep = r.NomeReparto || r.nomereparto || r.nome_reparto || r.Reparto || '';
-                    return rep.trim().toLowerCase() === repartoSelezionato.toLowerCase();
-                });
-
-            if (datiFiltrati.length === 0) {
-                contenitore.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun dato disponibile per il reparto selezionato.</div>';
-                return;
-            }
-
-            const mesiMap = {};
-            datiFiltrati.forEach(t => {
-                if (!t.Data) return;
-                const meseKey = t.Data.substring(0, 7);
-                if (!mesiMap[meseKey]) mesiMap[meseKey] = [];
-                mesiMap[meseKey].push(t);
-            });
-
-            const giorniSettimanaCorti = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
-
-            Object.keys(mesiMap).sort().forEach(meseKey => {
-                const [annoStr, meseStr] = meseKey.split('-');
-                const anno = parseInt(annoStr, 10);
-                const mese = parseInt(meseStr, 10);
-                const giorniNelMese = new Date(anno, mese, 0).getDate();
-
-                const dataTitolo = new Date(anno, mese - 1, 1);
-                const titoloMese = dataTitolo.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
-
-                const personaleMap = {};
-                mesiMap[meseKey].forEach(t => {
-                    const nome = (t.Dipendente1 || t.dipendente1 || `Matr. ${t.Matricola || t.matricola || 'N/D'}`).trim();
+                    loaderText.innerText = `Caricamento dati in corso (recuperati ${datiRaccolti.length} record)...`;  const { data, error } = await supabaseClient .from('Turnistica') .select('*') .gte('Data', primoGiornoMeseCorrente) .order('Data', { ascending: true }) .range(page * pageSize, (page + 1) * pageSize - 1);  if (error) throw error;  if (data && data.length > 0) { datiRaccolti = datiRaccolti.concat(data); if (data.length < pageSize) { hasMore = false; } else { page++; } } else { hasMore = false; } } } catch (err) { loader.style.display = 'none'; contenitore.innerHTML = '<div class="alert alert-danger rounded-3 border-0 shadow-sm p-3">Errore di connessione al database. Riprova più tardi.</div>'; console.error(err); return; }  loader.style.display = 'none';  if (datiRaccolti.length === 0) { contenitore.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno trovato nel database.</div>'; return; }  tuttiIDati = datiRaccolti; popolaFiltroReparti(tuttiIDati); renderizzaTabellone(); }  function popolaFiltroReparti(data) { const select = document.getElementById('filtro-reparto'); const valorePrecedente = select.value;  const repartiSet = new Set(); data.forEach(row => { const rep = row.NomeReparto \vert{}\vert{} row.nomereparto \vert{}\vert{} row.nome_reparto \vert{}\vert{} row.Reparto \vert{}\vert{} ''; if (rep.trim() !== '') { repartiSet.add(rep.trim()); } });  const repartiOrdinati = Array.from(repartiSet).sort();  select.innerHTML = '<option value="TUTTI">Tutti i reparti</option>'; repartiOrdinati.forEach(rep => { const opt = document.createElement('option'); opt.value = rep; opt.textContent = rep; select.appendChild(opt); });  if (repartiOrdinati.includes(valorePrecedente)) { select.value = valorePrecedente; } }  function renderizzaTabellone() { const contenitore = document.getElementById('contenitore-mesi'); contenitore.innerHTML = '';  const repartoSelezionato = document.getElementById('filtro-reparto').value;  const datiFiltrati = repartoSelezionato === 'TUTTI' ? tuttiIDati : tuttiIDati.filter(r => { const rep = r.NomeReparto \vert{}\vert{} r.nomereparto \vert{}\vert{} r.nome_reparto \vert{}\vert{} r.Reparto \vert{}\vert{} ''; return rep.trim().toLowerCase() === repartoSelezionato.toLowerCase(); });  if (datiFiltrati.length === 0) { contenitore.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun dato disponibile per il reparto selezionato.</div>'; return; }  const mesiMap = {}; datiFiltrati.forEach(t => { if (!t.Data) return; const meseKey = t.Data.substring(0, 7); if (!mesiMap[meseKey]) mesiMap[meseKey] = []; mesiMap[meseKey].push(t); });  const giorniSettimanaCorti = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];  Object.keys(mesiMap).sort().forEach(meseKey => { const [annoStr, meseStr] = meseKey.split('-'); const anno = parseInt(annoStr, 10); const mese = parseInt(meseStr, 10); const giorniNelMese = new Date(anno, mese, 0).getDate();  const dataTitolo = new Date(anno, mese - 1, 1); const titoloMese = dataTitolo.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });  const personaleMap = {}; mesiMap[meseKey].forEach(t => { const nome = (t.Dipendente1 \vert{}\vert{} t.dipendente1 \vert{}\vert{} `Matr. ${t.Matricola || t.matricola || 'N/D'}`).trim();
                     const matricolaVal = t.Matricola || t.matricola || '';
                     const chiaveOp = `${nome}_${matricolaVal}`;
 
@@ -408,59 +307,3 @@
                     html += `
                         <tr>
                             <td class="sticky-col" title="${op.nome}">
-                                <span class="nome-operatore">${op.nome}</span>
-                            </td>
-                    `;
-
-                    for (let g = 1; g <= giorniNelMese; g++) {
-                        const dObj = new Date(anno, mese - 1, g);
-                        const isWeekend = (dObj.getDay() === 0 || dObj.getDay() === 6);
-                        const turno = op.turniPerGiorno[g];
-
-                        if (turno) {
-                            const turnoVal = turno.Turno || turno.turno || '';
-                            const desc = turnoVal.toLowerCase();
-                            let bgClass = 'bg-primary text-white';
-
-                            if (desc.includes('pomeriggio')) {
-                                bgClass = 'bg-success text-white';
-                            } else if (desc.includes('riposo') || desc.includes('festivit') || desc.includes('ferie')) {
-                                bgClass = 'bg-danger text-white';
-                            }
-
-                            const sigla = turno.SiglaTurno || turno.siglaturno || turnoVal || '-';
-                            const ruoloVal = turno.Ruolo || turno.ruolo || '';
-                            const ruolo1Val = turno.Ruolo1 || turno.ruolo1 || '';
-                            const orarioVal = turno.Orario || turno.orario || '';
-                            const noteVal = turno.Note || turno.note || '';
-                            
-                            const tooltipText = `Turno: ${turnoVal || 'N/D'}${orarioVal ? ' - Orario: ' + orarioVal : ''}${noteVal ? ' - Note: ' + noteVal : ''}`;
-
-                            html += `
-                                <td class="${isWeekend ? 'cell-weekend' : ''}">
-                                    <span class="sigla-pill ${bgClass}" title="${tooltipText}">${sigla}</span>
-                                    ${ruoloVal ? `<span class="cell-ruolo" title="${ruoloVal}">${ruoloVal}</span>` : ''}
-                                    ${ruolo1Val ? `<span class="cell-ruolo1" title="${ruolo1Val}">${ruolo1Val}</span>` : ''}
-                                </td>
-                            `;
-                        } else {
-                            html += `<td class="${isWeekend ? 'cell-weekend' : ''}"></td>`;
-                        }
-                    }
-
-                    html += `</tr>`;
-                });
-
-                html += `
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                `;
-
-                contenitore.innerHTML += html;
-            });
-        }
-    </script>
-</body>
-</html>
