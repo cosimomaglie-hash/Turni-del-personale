@@ -575,8 +575,17 @@
                 
                 const siglaTurnoHtml = t.SiglaTurno ? `<div class="text-dark small fw-semibold mt-1">${t.SiglaTurno}</div>` : '';
                 const orarioHtml = t.Orario ? `<div class="text-muted small fst-italic mt-1">${t.Orario}</div>` : '';
-                const ruoliTesto = [t.Ruolo, t.Ruolo1].filter(Boolean).join(' - ');
-                const ruoliHtml = ruoliTesto ? `<div class="text-secondary small fw-medium mt-1">${ruoliTesto}</div>` : '';
+                const ruoliFormattati = [t.Ruolo, t.Ruolo1]
+                    .filter(Boolean)
+                    .map(r => {
+                        if (String(r).trim().toLowerCase() === 'mis') {
+                            return `<span class="px-2 py-0 rounded fw-bold" style="background-color: #facc15; color: #000000;">${r}</span>`;
+                        }
+                        return r;
+                    })
+                    .join(' - ');
+                
+                const ruoliHtml = ruoliFormattati ? `<div class="text-secondary small fw-medium mt-1">${ruoliFormattati}</div>` : '';
 
                 if (layoutScelto === 1) {
                     lista.innerHTML += `
