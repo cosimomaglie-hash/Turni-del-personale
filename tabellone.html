@@ -461,7 +461,7 @@
                             const sigla = (turno.SiglaTurno || turno.siglaturno || turnoVal || '').trim();
                             const checkTarget = sigla.toUpperCase();
 
-                            // Controllo se il contenuto corrisponde a R, Ferie, Mal, L 104 o PE
+                            // Controllo se il contenuto corrisponde a R, Ferie, Mal, L  o PE
                             const isSpeciale = checkTarget === 'R' || 
                                                checkTarget === 'ASP' || 
                                                checkTarget === 'PE' || 
@@ -473,7 +473,7 @@
                                                checkTarget.includes('FESTIVIT');
 
                             let bgClass = 'bg-primary text-white';
-                            if (isSpeciale || checkTarget.includes('RIPOSO') || checkTarget.includes('FESTIVIT')) {
+                            if (isSpeciale || checkTarget.includes('RIPOSO') || checkTarget.includes('FES')) {
                                 bgClass = 'bg-danger text-white';
                             } else if (checkTarget.includes('POMERIGGIO')) {
                                 bgClass = 'bg-success text-white';
