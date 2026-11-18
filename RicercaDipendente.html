@@ -525,7 +525,7 @@
                             const desc = (turnoGiorno.Turno || '').toLowerCase();
                             let bgSigla = 'bg-primary text-white';
                             if (desc.includes('pomeriggio')) bgSigla = 'bg-success text-white';
-                            else if (desc.includes('riposo') || desc.includes('104') ||desc.includes('pe') ||desc.includes('festivit') || desc.includes('ferie')) bgSigla = 'bg-danger text-white';
+                            else if (desc.includes('riposo') || desc.includes('104') ||desc.includes('permesso') ||desc.includes('festivit') || desc.includes('ferie')) bgSigla = 'bg-danger text-white';
 
                             const sigla = turnoGiorno.SiglaTurno || turnoGiorno.Turno || '-';
                             siglaHtml = `<span class="calendar-sigla ${bgSigla} shadow-sm" title="${sigla}">${sigla}</span>`;
