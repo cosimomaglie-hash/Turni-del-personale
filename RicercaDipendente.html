@@ -578,7 +578,7 @@
                 const ruoliFormattati = [t.Ruolo, t.Ruolo1]
                     .filter(Boolean)
                     .map(r => {
-                        if (String(r).trim().toLowerCase() === 'mis') {
+                        if (String(r).trim().toLowerCase() .includes('mis')) {
                             return `<span class="px-2 py-0 rounded fw-bold" style="background-color: #facc15; color: #000000;">${r}</span>`;
                         }
                         return r;
