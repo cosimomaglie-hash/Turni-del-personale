@@ -225,7 +225,6 @@
 
         let tuttiIDati = [];
 
-        // Normalizza la data in YYYY-MM-DD se arriva come DD/MM/YYYY o ISO timestamp
         function normalizzaData(val) {
             if (!val) return '';
             const s = String(val).trim();
@@ -244,12 +243,11 @@
             await caricaDatiTabellone();
         };
 
-        // 1. Recupera tutti i mesi e reparti disponibili
+        // 1. Recupera reparti e mesi presenti nei record scaricati
         async function inizializzaFiltri() {
             const selectReparto = document.getElementById('filtro-reparto');
             const selectMese = document.getElementById('filtro-mese');
             const ora = new Date();
-            const primoGiornoMeseCorrente = `${ora.getFullYear()}-${String(ora.getMonth() + 1).padStart(2, '0')}-01`;
 
             const repartiSet = new Set();
             const mesiSet = new Set();
@@ -257,6 +255,7 @@
             let page = 0;
             const pageSize = 1000;
             let hasMore = true;
+            let righeLette = 0;
 
             try {
                 while (hasMore) {
@@ -269,13 +268,14 @@
                     if (error) throw error;
 
                     if (data && data.length > 0) {
+                        righeLette += data.length;
                         data.forEach(row => {
                             const rep = row.NomeReparto || row.nomereparto || row.nome_reparto || row.Reparto || '';
                             if (rep.trim() !== '') {
                                 repartiSet.add(rep.trim());
                             }
                             const dNorm = normalizzaData(row.Data || row.data);
-                            if (dNorm && dNorm >= primoGiornoMeseCorrente) {
+                            if (dNorm && dNorm.length >= 7) {
                                 mesiSet.add(dNorm.substring(0, 7));
                             }
                         });
@@ -317,8 +317,8 @@
                     selectMese.value = meseCorrenteKey;
                 }
 
-                console.log('Mesi trovati da mese corrente in poi:', mesiOrdinati);
-                console.log('Reparti trovati:', repartiOrdinati);
+                console.log('Righe totali lette in inizializzaFiltri:', righeLette);
+                console.log('Tutti i mesi trovati:', mesiOrdinati);
 
             } catch (err) {
                 console.error("Errore nel caricamento filtri:", err);
@@ -337,9 +337,6 @@
             contenitore.innerHTML = '';
             loader.style.display = 'block';
 
-            const ora = new Date();
-            const primoGiornoMeseCorrente = `${ora.getFullYear()}-${String(ora.getMonth() + 1).padStart(2, '0')}-01`;
-
             let datiRaccolti = [];
             let pageSize = 1000;
             let page = 0;
@@ -349,13 +346,11 @@
                 while (hasMore) {
                     loaderText.innerText = `Caricamento dati in corso (recuperati ${datiRaccolti.length} record)...`;
 
-                    let query = supabaseClient
+                    const { data, error } = await supabaseClient
                         .from('Turnistica')
                         .select('*')
                         .order('Data', { ascending: true })
                         .range(page * pageSize, (page + 1) * pageSize - 1);
-
-                    const { data, error } = await query;
 
                     if (error) throw error;
 
@@ -379,7 +374,6 @@
 
             loader.style.display = 'none';
 
-            // Filtra lato client dopo normalizzazione data così funziona anche con formati data misti
             tuttiIDati = datiRaccolti.filter(r => {
                 const dNorm = normalizzaData(r.Data || r.data);
                 if (!dNorm) return false;
@@ -388,9 +382,7 @@
                 const matchReparto = (repartoSelezionato === 'TUTTI' || rep.toLowerCase() === repartoSelezionato.toLowerCase());
 
                 const meseKey = dNorm.substring(0, 7);
-                const matchMese = (meseSelezionato === 'TUTTI')
-                    ? (dNorm >= primoGiornoMeseCorrente)
-                    : (meseKey === meseSelezionato);
+                const matchMese = (meseSelezionato === 'TUTTI' || meseKey === meseSelezionato);
 
                 return matchReparto && matchMese;
             }).map(r => ({
