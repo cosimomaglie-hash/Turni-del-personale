@@ -34,14 +34,12 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Navbar */
         .app-navbar {
             background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             color: white;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        /* Barra Filtri (Reparto e Mese) */
         .filter-bar {
             background: var(--card-bg);
             border-radius: 12px;
@@ -49,7 +47,6 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.03);
         }
 
-        /* Contenitore Tabellone con scorrimento orizzontale fluido */
         .matrix-wrapper {
             width: 100%;
             overflow-x: auto;
@@ -80,7 +77,6 @@
             border-bottom: none;
         }
 
-        /* Prima colonna fissa (Personale) allineata in alto */
         .sticky-col {
             position: sticky;
             left: 0;
@@ -104,7 +100,6 @@
             vertical-align: middle !important;
         }
 
-        /* Intestazione Giorni */
         .day-header {
             min-width: 58px;
             max-width: 58px;
@@ -123,14 +118,12 @@
             background-color: #fffafa;
         }
 
-        /* Cella del giorno con contenuto esteso */
         .matrix-table td {
             min-width: 58px;
             max-width: 58px;
             height: 65px;
         }
 
-        /* Badge Sigla nella cella */
         .sigla-pill {
             display: inline-block;
             width: 90%;
@@ -155,7 +148,6 @@
             display: block;
         }
 
-        /* Ruolo e Ruolo1 dentro la cella del giorno (senza sfondo, allineati in alto) */
         .cell-ruolo {
             font-size: 0.58rem;
             color: var(--text-muted);
@@ -233,17 +225,29 @@
 
         let tuttiIDati = [];
 
+        function normalizzaData(val) {
+            if (!val) return '';
+            const s = String(val).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+                return s.substring(0, 10);
+            }
+            if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) {
+                const [gg, mm, aaaa] = s.substring(0, 10).split('/');
+                return `${aaaa}-${mm}-${gg}`;
+            }
+            return s.substring(0, 10);
+        }
+
         window.onload = async () => {
             await inizializzaFiltri();
             await caricaDatiTabellone();
         };
 
-        // 1. Recupera tutti i mesi e reparti disponibili scaricando solo poche colonne
+        // 1. Recupera reparti e mesi presenti nei record scaricati
         async function inizializzaFiltri() {
             const selectReparto = document.getElementById('filtro-reparto');
             const selectMese = document.getElementById('filtro-mese');
             const ora = new Date();
-            const primoGiornoMeseCorrente = `${ora.getFullYear()}-${String(ora.getMonth() + 1).padStart(2, '0')}-01`;
 
             const repartiSet = new Set();
             const mesiSet = new Set();
@@ -251,28 +255,28 @@
             let page = 0;
             const pageSize = 1000;
             let hasMore = true;
+            let righeLette = 0;
 
             try {
                 while (hasMore) {
                     const { data, error } = await supabaseClient
                         .from('Turnistica')
-                        .select('Data, NomeReparto, Matricola, Dipendente1')
-                        .gte('Data', primoGiornoMeseCorrente)
+                        .select('*')
                         .order('Data', { ascending: true })
-                        .order('Matricola', { ascending: true })
-                        .order('Dipendente1', { ascending: true })
                         .range(page * pageSize, (page + 1) * pageSize - 1);
 
                     if (error) throw error;
 
                     if (data && data.length > 0) {
+                        righeLette += data.length;
                         data.forEach(row => {
                             const rep = row.NomeReparto || row.nomereparto || row.nome_reparto || row.Reparto || '';
                             if (rep.trim() !== '') {
                                 repartiSet.add(rep.trim());
                             }
-                            if (row.Data) {
-                                mesiSet.add(row.Data.substring(0, 7));
+                            const dNorm = normalizzaData(row.Data || row.data);
+                            if (dNorm && dNorm.length >= 7) {
+                                mesiSet.add(dNorm.substring(0, 7));
                             }
                         });
 
@@ -286,7 +290,6 @@
                     }
                 }
 
-                // Popola Reparti
                 const repartiOrdinati = Array.from(repartiSet).sort();
                 selectReparto.innerHTML = '<option value="TUTTI">Tutti i reparti</option>';
                 repartiOrdinati.forEach(rep => {
@@ -296,7 +299,6 @@
                     selectReparto.appendChild(opt);
                 });
 
-                // Popola Mesi
                 const mesiOrdinati = Array.from(mesiSet).sort();
                 selectMese.innerHTML = '<option value="TUTTI">Tutti i mesi</option>';
                 mesiOrdinati.forEach(meseKey => {
@@ -310,18 +312,20 @@
                     selectMese.appendChild(opt);
                 });
 
-                // Imposta di default il mese corrente se presente
                 const meseCorrenteKey = `${ora.getFullYear()}-${String(ora.getMonth() + 1).padStart(2, '0')}`;
                 if (mesiOrdinati.includes(meseCorrenteKey)) {
                     selectMese.value = meseCorrenteKey;
                 }
+
+                console.log('Righe totali lette in inizializzaFiltri:', righeLette);
+                console.log('Tutti i mesi trovati:', mesiOrdinati);
 
             } catch (err) {
                 console.error("Errore nel caricamento filtri:", err);
             }
         }
 
-        // 2. Scarica i dati applicando i filtri direttamente su Supabase con paginazione ordinata
+        // 2. Scarica i dati applicando i filtri
         async function caricaDatiTabellone() {
             const loader = document.getElementById('loader');
             const loaderText = document.getElementById('loader-text');
@@ -333,9 +337,6 @@
             contenitore.innerHTML = '';
             loader.style.display = 'block';
 
-            const ora = new Date();
-            const primoGiornoMeseCorrente = `${ora.getFullYear()}-${String(ora.getMonth() + 1).padStart(2, '0')}-01`;
-
             let datiRaccolti = [];
             let pageSize = 1000;
             let page = 0;
@@ -345,34 +346,11 @@
                 while (hasMore) {
                     loaderText.innerText = `Caricamento dati in corso (recuperati ${datiRaccolti.length} record)...`;
 
-                    let query = supabaseClient
+                    const { data, error } = await supabaseClient
                         .from('Turnistica')
-                        .select('*');
-
-                    // Filtro Mese direttamente sul DB
-                    if (meseSelezionato !== 'TUTTI') {
-                        const [anno, mese] = meseSelezionato.split('-').map(Number);
-                        const ultimoGiorno = new Date(anno, mese, 0).getDate();
-                        const dataInizio = `${meseSelezionato}-01`;
-                        const dataFine = `${meseSelezionato}-${String(ultimoGiorno).padStart(2, '0')}`;
-                        query = query.gte('Data', dataInizio).lte('Data', dataFine);
-                    } else {
-                        query = query.gte('Data', primoGiornoMeseCorrente);
-                    }
-
-                    // Filtro Reparto direttamente sul DB
-                    if (repartoSelezionato !== 'TUTTI') {
-                        query = query.eq('NomeReparto', repartoSelezionato);
-                    }
-
-                    // Ordinamento deterministico per evitare salti o blocchi con .range()
-                    query = query
+                        .select('*')
                         .order('Data', { ascending: true })
-                        .order('Matricola', { ascending: true })
-                        .order('Dipendente1', { ascending: true })
                         .range(page * pageSize, (page + 1) * pageSize - 1);
-
-                    const { data, error } = await query;
 
                     if (error) throw error;
 
@@ -396,12 +374,30 @@
 
             loader.style.display = 'none';
 
-            if (datiRaccolti.length === 0) {
+            tuttiIDati = datiRaccolti.filter(r => {
+                const dNorm = normalizzaData(r.Data || r.data);
+                if (!dNorm) return false;
+
+                const rep = (r.NomeReparto || r.nomereparto || r.nome_reparto || r.Reparto || '').trim();
+                const matchReparto = (repartoSelezionato === 'TUTTI' || rep.toLowerCase() === repartoSelezionato.toLowerCase());
+
+                const meseKey = dNorm.substring(0, 7);
+                const matchMese = (meseSelezionato === 'TUTTI' || meseKey === meseSelezionato);
+
+                return matchReparto && matchMese;
+            }).map(r => ({
+                ...r,
+                _dataNorm: normalizzaData(r.Data || r.data)
+            }));
+
+            console.log('Record totali scaricati da Supabase:', datiRaccolti.length);
+            console.log('Record filtrati per visualizzazione:', tuttiIDati.length);
+
+            if (tuttiIDati.length === 0) {
                 contenitore.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno trovato per i filtri selezionati.</div>';
                 return;
             }
 
-            tuttiIDati = datiRaccolti;
             renderizzaTabellone();
         }
 
@@ -416,10 +412,11 @@
 
             const mesiMap = {};
             tuttiIDati.forEach(t => {
-                if (!t.Data) return;
-                const meseKey = t.Data.substring(0, 7);
+                const dNorm = t._dataNorm || normalizzaData(t.Data || t.data);
+                if (!dNorm) return;
+                const meseKey = dNorm.substring(0, 7);
                 if (!mesiMap[meseKey]) mesiMap[meseKey] = [];
-                mesiMap[meseKey].push(t);
+                mesiMap[meseKey].push({ ...t, _dataNorm: dNorm });
             });
 
             const giorniSettimanaCorti = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
@@ -447,7 +444,7 @@
                         };
                     }
 
-                    const giornoNum = parseInt(t.Data.substring(8, 10), 10);
+                    const giornoNum = parseInt(t._dataNorm.substring(8, 10), 10);
                     personaleMap[chiaveOp].turniPerGiorno[giornoNum] = t;
                 });
 
@@ -504,7 +501,6 @@
                             const sigla = (turno.SiglaTurno || turno.siglaturno || turnoVal || '').trim();
                             const checkTarget = sigla.toUpperCase();
 
-                            // Controllo se il contenuto corrisponde a R, Ferie, Mal, L  o PE
                             const isSpeciale = checkTarget === 'R' || 
                                                checkTarget === 'ASP' || 
                                                checkTarget === 'PE' || 
