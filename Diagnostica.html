@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <title>Tabellone Turni Reparto</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icona.png">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app-navbar {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .filter-bar {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+        }
+
+        .matrix-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+        }
+
+        .matrix-table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: max-content;
+            min-width: 100%;
+            margin-bottom: 0;
+        }
+
+        .matrix-table th,
+        .matrix-table td {
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 4px 2px;
+            text-align: center;
+            vertical-align: top !important;
+        }
+
+        .matrix-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .sticky-col {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background-color: #ffffff;
+            min-width: 160px;
+            max-width: 160px;
+            text-align: left !important;
+            padding: 8px 12px !important;
+            border-right: 2px solid #cbd5e1 !important;
+            box-shadow: 2px 0 5px -2px rgba(0,0,0,0.05);
+            vertical-align: top !important;
+        }
+
+        .matrix-table thead th.sticky-col {
+            z-index: 3;
+            background-color: #f8fafc;
+            font-weight: 700;
+            color: var(--text-main);
+            font-size: 0.8rem;
+            vertical-align: middle !important;
+        }
+
+        .day-header {
+            min-width: 58px;
+            max-width: 58px;
+            background-color: #f8fafc;
+            font-size: 0.72rem;
+            line-height: 1.2;
+            vertical-align: middle !important;
+        }
+
+        .day-header.weekend {
+            background-color: #fef2f2;
+            color: #dc2626;
+        }
+
+        .cell-weekend {
+            background-color: #fffafa;
+        }
+
+        .matrix-table td {
+            min-width: 58px;
+            max-width: 58px;
+            height: 65px;
+        }
+
+        .sigla-pill {
+            display: inline-block;
+            width: 90%;
+            padding: 2px 2px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+            margin-bottom: 2px;
+        }
+
+        .nome-operatore {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+
+        .cell-ruolo {
+            font-size: 0.58rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+            line-height: 1.1;
+            background: transparent !important;
+            margin-bottom: 1px;
+        }
+
+        .cell-ruolo1 {
+            font-size: 0.52rem;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+            line-height: 1.1;
+            background: transparent !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Barra Superiore -->
+    <nav class="navbar app-navbar py-3 mb-4">
+        <div class="container-fluid px-3 px-md-4 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <span class="navbar-brand mb-0 h1 fw-bold fs-5 text-white ms-1">📊 Tabellone Reparto</span>
+            </div>
+            <button onclick="caricaDatiTabellone()" class="btn btn-light btn-sm rounded-pill px-3 fw-semibold shadow-sm">🔄 Aggiorna</button>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-3 px-md-4 pb-5">
+        
+        <!-- Barra Filtri (Reparto e Mese con menu a tendina) -->
+        <div class="filter-bar mb-4 border">
+            <div class="row align-items-center g-3">
+                <div class="col-12 col-md-6">
+                    <label for="filtro-reparto" class="form-label fw-bold text-secondary small mb-1">🏥 Filtra per Reparto</label>
+                    <select id="filtro-reparto" class="form-select fw-semibold" onchange="caricaDatiTabellone()">
+                        <option value="TUTTI">Tutti i reparti</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label for="filtro-mese" class="form-label fw-bold text-secondary small mb-1">📅 Filtra per Mese</label>
+                    <select id="filtro-mese" class="form-select fw-semibold" onchange="caricaDatiTabellone()">
+                        <option value="TUTTI">Tutti i mesi</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loader -->
+        <div id="loader" class="text-center py-5" style="display: none;">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+            <p id="loader-text" class="mt-3 text-muted fw-medium">Caricamento tabellone in corso...</p>
+        </div>
+
+        <!-- Contenitore Tabelle Mensili -->
+        <div id="contenitore-mesi" class="d-flex flex-column gap-4">
+            <!-- I mesi verranno generati dinamicamente qui -->
+        </div>
+
+    </div>
+
+    <script>
+        // --- CONFIGURAZIONE SUPABASE ---
+        const SUPABASE_URL = 'https://uwoniioltnihmqakkzjv.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_Rx8MkwKEJLqZBZtbp-2IYw_rFUvKFin';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let tuttiIDati = [];
+
+        // Normalizza la data in YYYY-MM-DD se arriva come DD/MM/YYYY o ISO timestamp
+        function normalizzaData(val) {
+            if (!val) return '';
+            const s = String(val).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+                return s.substring(0, 10);
+            }
+            if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) {
+                const [gg, mm, aaaa] = s.substring(0, 10).split('/');
+                return `${aaaa}-${mm}-${gg}`;
+            }
+            return s.substring(0, 10);
+        }
+
+        window.onload = async () => {
+            await inizializzaFiltri();
+            await caricaDatiTabellone();
+        };
+
+        // 1. Recupera tutti i mesi e reparti disponibili
+        async function inizializzaFiltri() {
+            const selectReparto = document.getElementById('filtro-reparto');
+            const selectMese = document.getElementById('filtro-mese');
+            const ora = new Date();
+            const primoGiornoMeseCorrente = `${ora.getFullYear()}-${String(ora.getMonth() + 1).padStart(2, '0')}-01`;
+
+            const repartiSet = new Set();
+            const mesiSet = new Set();
+
+            let page = 0;
+            const pageSize = 1000;
+            let hasMore = true;
+
+            try {
+                while (hasMore) {
+                    const { data, error } = await supabaseClient
+                        .from('Turnistica')
+                        .select('*')
+                        .order('Data', { ascending: true })
+                        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+                    if (error) throw error;
+
+                    if (data && data.length > 0) {
+                        data.forEach(row => {
+                            const rep = row.NomeReparto || row.nomereparto || row.nome_reparto || row.Reparto || '';
+                            if (rep.trim() !== '') {
+                                repartiSet.add(rep.trim());
+                            }
+                            const dNorm = normalizzaData(row.Data || row.data);
+                            if (dNorm && dNorm >= primoGiornoMeseCorrente) {
+                                mesiSet.add(dNorm.substring(0, 7));
+                            }
+                        });
+
+                        if (data.length < pageSize) {
+                            hasMore = false;
+                        } else {
+                            page++;
+                        }
+                    } else {
+                        hasMore = false;
+                    }
+                }
+
+                const repartiOrdinati = Array.from(repartiSet).sort();
+                selectReparto.innerHTML = '<option value="TUTTI">Tutti i reparti</option>';
+                repartiOrdinati.forEach(rep => {
+                    const opt = document.createElement('option');
+                    opt.value = rep;
+                    opt.textContent = rep;
+                    selectReparto.appendChild(opt);
+                });
+
+                const mesiOrdinati = Array.from(mesiSet).sort();
+                selectMese.innerHTML = '<option value="TUTTI">Tutti i mesi</option>';
+                mesiOrdinati.forEach(meseKey => {
+                    const [annoStr, meseStr] = meseKey.split('-');
+                    const dataObj = new Date(parseInt(annoStr, 10), parseInt(meseStr, 10) - 1, 1);
+                    const nomeMeseFormattato = dataObj.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+                    
+                    const opt = document.createElement('option');
+                    opt.value = meseKey;
+                    opt.textContent = nomeMeseFormattato.charAt(0).toUpperCase() + nomeMeseFormattato.slice(1);
+                    selectMese.appendChild(opt);
+                });
+
+                const meseCorrenteKey = `${ora.getFullYear()}-${String(ora.getMonth() + 1).padStart(2, '0')}`;
+                if (mesiOrdinati.includes(meseCorrenteKey)) {
+                    selectMese.value = meseCorrenteKey;
+                }
+
+                console.log('Mesi trovati da mese corrente in poi:', mesiOrdinati);
+                console.log('Reparti trovati:', repartiOrdinati);
+
+            } catch (err) {
+                console.error("Errore nel caricamento filtri:", err);
+            }
+        }
+
+        // 2. Scarica i dati applicando i filtri
+        async function caricaDatiTabellone() {
+            const loader = document.getElementById('loader');
+            const loaderText = document.getElementById('loader-text');
+            const contenitore = document.getElementById('contenitore-mesi');
+            
+            const repartoSelezionato = document.getElementById('filtro-reparto').value;
+            const meseSelezionato = document.getElementById('filtro-mese').value;
+
+            contenitore.innerHTML = '';
+            loader.style.display = 'block';
+
+            const ora = new Date();
+            const primoGiornoMeseCorrente = `${ora.getFullYear()}-${String(ora.getMonth() + 1).padStart(2, '0')}-01`;
+
+            let datiRaccolti = [];
+            let pageSize = 1000;
+            let page = 0;
+            let hasMore = true;
+
+            try {
+                while (hasMore) {
+                    loaderText.innerText = `Caricamento dati in corso (recuperati ${datiRaccolti.length} record)...`;
+
+                    let query = supabaseClient
+                        .from('Turnistica')
+                        .select('*')
+                        .order('Data', { ascending: true })
+                        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+                    const { data, error } = await query;
+
+                    if (error) throw error;
+
+                    if (data && data.length > 0) {
+                        datiRaccolti = datiRaccolti.concat(data);
+                        if (data.length < pageSize) {
+                            hasMore = false;
+                        } else {
+                            page++;
+                        }
+                    } else {
+                        hasMore = false;
+                    }
+                }
+            } catch (err) {
+                loader.style.display = 'none';
+                contenitore.innerHTML = '<div class="alert alert-danger rounded-3 border-0 shadow-sm p-3">Errore di connessione al database. Riprova più tardi.</div>';
+                console.error(err);
+                return;
+            }
+
+            loader.style.display = 'none';
+
+            // Filtra lato client dopo normalizzazione data così funziona anche con formati data misti
+            tuttiIDati = datiRaccolti.filter(r => {
+                const dNorm = normalizzaData(r.Data || r.data);
+                if (!dNorm) return false;
+
+                const rep = (r.NomeReparto || r.nomereparto || r.nome_reparto || r.Reparto || '').trim();
+                const matchReparto = (repartoSelezionato === 'TUTTI' || rep.toLowerCase() === repartoSelezionato.toLowerCase());
+
+                const meseKey = dNorm.substring(0, 7);
+                const matchMese = (meseSelezionato === 'TUTTI')
+                    ? (dNorm >= primoGiornoMeseCorrente)
+                    : (meseKey === meseSelezionato);
+
+                return matchReparto && matchMese;
+            }).map(r => ({
+                ...r,
+                _dataNorm: normalizzaData(r.Data || r.data)
+            }));
+
+            console.log('Record totali scaricati da Supabase:', datiRaccolti.length);
+            console.log('Record filtrati per visualizzazione:', tuttiIDati.length);
+
+            if (tuttiIDati.length === 0) {
+                contenitore.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun turno trovato per i filtri selezionati.</div>';
+                return;
+            }
+
+            renderizzaTabellone();
+        }
+
+        function renderizzaTabellone() {
+            const contenitore = document.getElementById('contenitore-mesi');
+            contenitore.innerHTML = '';
+
+            if (tuttiIDati.length === 0) {
+                contenitore.innerHTML = '<div class="alert alert-info rounded-3 border-0 shadow-sm p-4 text-center">Nessun dato disponibile per i filtri selezionati.</div>';
+                return;
+            }
+
+            const mesiMap = {};
+            tuttiIDati.forEach(t => {
+                const dNorm = t._dataNorm || normalizzaData(t.Data || t.data);
+                if (!dNorm) return;
+                const meseKey = dNorm.substring(0, 7);
+                if (!mesiMap[meseKey]) mesiMap[meseKey] = [];
+                mesiMap[meseKey].push({ ...t, _dataNorm: dNorm });
+            });
+
+            const giorniSettimanaCorti = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+
+            Object.keys(mesiMap).sort().forEach(meseKey => {
+                const [annoStr, meseStr] = meseKey.split('-');
+                const anno = parseInt(annoStr, 10);
+                const mese = parseInt(meseStr, 10);
+                const giorniNelMese = new Date(anno, mese, 0).getDate();
+
+                const dataTitolo = new Date(anno, mese - 1, 1);
+                const titoloMese = dataTitolo.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+
+                const personaleMap = {};
+                mesiMap[meseKey].forEach(t => {
+                    const nome = (t.Dipendente1 || t.dipendente1 || `Matr. ${t.Matricola || t.matricola || 'N/D'}`).trim();
+                    const matricolaVal = t.Matricola || t.matricola || '';
+                    const chiaveOp = `${nome}_${matricolaVal}`;
+
+                    if (!personaleMap[chiaveOp]) {
+                        personaleMap[chiaveOp] = {
+                            nome: nome,
+                            matricola: matricolaVal,
+                            turniPerGiorno: {}
+                        };
+                    }
+
+                    const giornoNum = parseInt(t._dataNorm.substring(8, 10), 10);
+                    personaleMap[chiaveOp].turniPerGiorno[giornoNum] = t;
+                });
+
+                const elencoPersonale = Object.values(personaleMap).sort((a, b) => a.nome.localeCompare(b.nome));
+
+                let html = `
+                    <div class="card border-0 shadow-sm p-3 rounded-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold text-primary text-capitalize mb-0">📅 ${titoloMese}</h5>
+                            <span class="badge bg-light text-secondary border">${elencoPersonale.length} operatori</span>
+                        </div>
+                        <div class="matrix-wrapper">
+                            <table class="matrix-table">
+                                <thead>
+                                    <tr>
+                                        <th class="sticky-col">Personale</th>
+                `;
+
+                for (let g = 1; g <= giorniNelMese; g++) {
+                    const dObj = new Date(anno, mese - 1, g);
+                    const dayOfWeek = dObj.getDay();
+                    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                    const nomeGiorno = giorniSettimanaCorti[dayOfWeek];
+
+                    html += `
+                        <th class="day-header ${isWeekend ? 'weekend' : ''}">
+                            <div class="fw-normal" style="font-size: 0.65rem;">${nomeGiorno}</div>
+                            <div class="fw-bold">${g}</div>
+                        </th>
+                    `;
+                }
+
+                html += `
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+
+                elencoPersonale.forEach(op => {
+                    html += `
+                        <tr>
+                            <td class="sticky-col" title="${op.nome}">
+                                <span class="nome-operatore">${op.nome}</span>
+                            </td>
+                    `;
+
+                    for (let g = 1; g <= giorniNelMese; g++) {
+                        const dObj = new Date(anno, mese - 1, g);
+                        const isWeekend = (dObj.getDay() === 0 || dObj.getDay() === 6);
+                        const turno = op.turniPerGiorno[g];
+
+                        if (turno) {
+                            const turnoVal = (turno.Turno || turno.turno || '').trim();
+                            const sigla = (turno.SiglaTurno || turno.siglaturno || turnoVal || '').trim();
+                            const checkTarget = sigla.toUpperCase();
+
+                            const isSpeciale = checkTarget === 'R' || 
+                                               checkTarget === 'ASP' || 
+                                               checkTarget === 'PE' || 
+                                               checkTarget.includes('FERIE') || 
+                                               checkTarget.includes('MAL') || 
+                                               checkTarget.includes('L 104') || 
+                                               checkTarget.includes('RIPOSO') ||  
+                                               checkTarget.includes('FES') || 
+                                               checkTarget.includes('FESTIVIT');
+
+                            let bgClass = 'bg-primary text-white';
+                            if (isSpeciale || checkTarget.includes('RIPOSO') || checkTarget.includes('FES')) {
+                                bgClass = 'bg-danger text-white';
+                            } else if (checkTarget.includes('POMERIGGIO')) {
+                                bgClass = 'bg-success text-white';
+                            }
+
+                            const ruoloVal = turno.Ruolo || turno.ruolo || '';
+                            const ruolo1Val = turno.Ruolo1 || turno.ruolo1 || '';
+                            const orarioVal = turno.Orario || turno.orario || '';
+                            const noteVal = turno.Note || turno.note || '';
+                            
+                            const tooltipText = `Turno: ${turnoVal || 'N/D'}${orarioVal ? ' - Orario: ' + orarioVal : ''}${noteVal ? ' - Note: ' + noteVal : ''}`;
+
+                            html += `
+                                <td class="${isWeekend ? 'cell-weekend' : ''}">
+                                    <span class="sigla-pill ${bgClass}" title="${tooltipText}">${sigla}</span>
+                                    ${ruoloVal ? `<span class="cell-ruolo" title="${ruoloVal}">${ruoloVal}</span>` : ''}
+                                    ${ruolo1Val ? `<span class="cell-ruolo1" title="${ruolo1Val}">${ruolo1Val}</span>` : ''}
+                                </td>
+                            `;
+                        } else {
+                            html += `<td class="${isWeekend ? 'cell-weekend' : ''}"></td>`;
+                        }
+                    }
+
+                    html += `</tr>`;
+                });
+
+                html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+
+                contenitore.innerHTML += html;
+            });
+        }
+    </script>
+</body>
+</html>
